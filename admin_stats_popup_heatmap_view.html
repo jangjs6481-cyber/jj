@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>관리자 통계 - Level 현황</title>
+<style>
+body { font-family: Arial, sans-serif; margin:20px; background:#f4f6f8; }
+h1 { text-align:center; }
+.top-actions { text-align:right; margin-bottom:10px; }
+.btn { padding:8px 14px; margin:5px; border:0; background:#2f5597; color:white; cursor:pointer; }
+.btn-gray { background:#666; }
+.notice { background:#fff2cc; border:1px solid #d6b656; padding:10px; margin-bottom:12px; font-size:13px; }
+.summary-box { margin:10px 0; padding:10px; background:#fff; border:1px solid #ccc; font-weight:bold; font-size:13px; }
+table { border-collapse:collapse; width:100%; background:white; margin-bottom:18px; }
+th, td { border:1px solid #ccc; padding:2px; text-align:center; font-size:10px; white-space:nowrap; }
+th { background:#e8eef7; position:sticky; top:0; z-index:1; }
+.wrap { overflow:auto; max-height:75vh; border:1px solid #ccc; background:white; }\n.matrix-wrap { max-height:78vh; }\n.summary-wrap { max-height:45vh; }
+.level-badge { display:inline-block; min-width:28px; padding:2px 3px; border-radius:8px; font-weight:bold; color:white; font-size:10px; }
+.lv0 { background:#999; }
+.lv1 { background:#70ad47; }
+.lv2 { background:#5b9bd5; }
+.lv3 { background:#ffc000; color:#333; }
+.lv4 { background:#c00000; }
+.stat-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; margin:10px 0; }
+.stat-card { background:white; border:1px solid #ccc; padding:12px; text-align:center; }
+.stat-number { font-size:22px; font-weight:bold; color:#2f5597; }
+.name-col { position:sticky; left:38px; background:#fff; z-index:3; min-width:70px; max-width:70px; }
+.no-col { position:sticky; left:0; background:#fff; z-index:3; min-width:35px; max-width:35px; }
+.matrix-head-1 th { top:0; }
+.matrix-head-2 th { top:28px; }
+.process-header { background:#d9eaf7; font-weight:bold; }
+.section-title-row { display:flex; justify-content:space-between; align-items:center; margin-top:16px; }
+.modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:99; }
+.modal-content { background:white; margin:18px auto; padding:18px; width:96vw; height:90vh; overflow:auto; border-radius:6px; }
+.close { float:right; font-size:26px; cursor:pointer; font-weight:bold; }
+.large-matrix-wrap { overflow:auto; max-height:82vh; border:1px solid #ccc; }
+.large-matrix-wrap th, .large-matrix-wrap td { font-size:9px; padding:1px; line-height:1.1; }
+.large-matrix-wrap .level-badge { min-width:22px; padding:1px 2px; font-size:9px; border-radius:6px; }
+.level-dot { display:inline-block; min-width:10px; padding:0 2px; border-radius:50%; background:#999; color:white; font-size:9px; line-height:12px; }
+.compact-level { min-width:22px; padding:1px 2px; font-size:9px; border-radius:6px; }
+
+
+
+
+/* Heatmap popup view */
+.heatmap-legend { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+.legend-item { display:flex; gap:4px; align-items:center; }
+.color-box { width:16px; height:16px; border-radius:3px; display:inline-block; }
+.heatmap-popup-wrap { overflow:auto; max-height:76vh; background:white; border:1px solid #ccc; }
+.heatmap-popup-table { border-collapse:collapse; background:white; width:auto; min-width:1200px; }
+.heatmap-popup-table th, .heatmap-popup-table td { border:1px solid #ccc; text-align:center; font-size:9px; padding:1px; white-space:nowrap; }
+.heatmap-popup-table th { background:#e8eef7; position:sticky; top:0; z-index:3; }
+.heatmap-popup-table .process-head { background:#d9eaf7; font-weight:bold; }
+.heatmap-popup-table .no-col { position:sticky; left:0; background:white; z-index:4; min-width:30px; max-width:30px; }
+.heatmap-popup-table .name-col { position:sticky; left:34px; background:white; z-index:4; min-width:75px; max-width:75px; }
+.heatmap-popup-table .summary-col { min-width:90px; max-width:90px; }
+.heatmap-popup-table .level-cell { width:18px; min-width:18px; height:18px; font-weight:bold; color:white; cursor:pointer; padding:0; }
+.employee-summary { display:flex; gap:2px; justify-content:center; }
+.summary-chip { display:inline-block; padding:1px 3px; border-radius:7px; font-size:8px; color:white; }
+.heatmap-popup-table.hidden-text .level-cell { font-size:0; }
+.heatmap-popup-table.hidden-text .level-cell::after { content:""; display:inline-block; width:10px; height:10px; border-radius:50%; }
+.heatmap-popup-table.hidden-text .lv0::after { background:#999; }
+.heatmap-popup-table.hidden-text .lv1::after { background:#70ad47; }
+.heatmap-popup-table.hidden-text .lv2::after { background:#5b9bd5; }
+.heatmap-popup-table.hidden-text .lv3::after { background:#ffc000; }
+.heatmap-popup-table.hidden-text .lv4::after { background:#c00000; }
+.compact-toggle { margin-left:10px; }
+
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<h1>관리자 통계 - 성명별 Level 조회</h1>
+
+<div class="top-actions">
+    <button class="btn btn-gray" onclick="location.href='index.html'">메인으로</button>
+    <button class="btn" onclick="renderAll()">새로고침</button>
+    <button class="btn" onclick="downloadExcel()">통계 Excel 다운로드</button>
+</div>
+
+<div class="notice">
+    <b>안내</b><br>
+    이 페이지는 메인 화면의 저장 데이터를 기준으로 통계를 표시합니다.
+    GitHub Pages 또는 같은 폴더에서 사용할 경우 메인 파일과 같은 브라우저 저장소(LocalStorage)를 사용합니다.
+</div>
+
+<div class="summary-box">
+    기준 월:
+    <input type="month" id="statMonth" onchange="renderAll()">
+</div>
+
+<div class="stat-grid">
+    <div class="stat-card">총 인원<div class="stat-number" id="totalEmployees">0</div></div>
+    <div class="stat-card">월 리더참여 합계<div class="stat-number" id="totalLeaderParticipation">0</div></div>
+    <div class="stat-card">월 보조참여 합계<div class="stat-number" id="totalSupportParticipation">0</div></div>
+    <div class="stat-card">월 총참여 합계<div class="stat-number" id="totalParticipation">0</div></div>
+</div>
+
+<div class="section-title-row">
+    <h2>1. 성명별 공정 및 세부공정 Level 조회</h2>
+    <button class="btn" onclick="openMatrixPopup()">한눈에보기</button>
+</div>
+<div class="wrap matrix-wrap">
+<table id="matrixTable">
+<thead id="matrixHead"></thead>
+<tbody id="matrixBody"></tbody>
+</table>
+</div>
+
+<h2>2. 월별 공정 및 세부공정 전 인원 통계</h2>
+<div class="wrap summary-wrap">
+<table>
+<thead>
+<tr>
+    <th>공정</th>
+    <th>세부공정</th>
+    <th>전 인원 리더 작업횟수</th>
+    <th>전 인원 보조 작업횟수</th>
+    <th>전 인원 총 작업횟수</th>
+    <th>Level 1 인원</th>
+    <th>Level 2 인원</th>
+    <th>Level 3 인원</th>
+    <th>Level 4 인원</th>
+    <th>미달 인원</th>
+</tr>
+</thead>
+<tbody id="processSummaryBody"></tbody>
+</table>
+</div>
+
+
+<div id="matrixPopup" class="modal">
+<div class="modal-content">
+    <span class="close" onclick="closeMatrixPopup()">&times;</span>
+    <h2>성명별 공정 및 세부공정 Level 한눈에보기</h2>
+
+    <div class="summary-box">
+        기준 월: <span id="popupMonthLabel"></span>
+        <label class="compact-toggle">
+            <input type="checkbox" id="popupDotMode" checked onchange="togglePopupDotMode()">
+            점으로 보기
+        </label>
+        <button class="btn" onclick="renderPopupMatrix()">새로고침</button>
+        <button class="btn btn-gray" onclick="closeMatrixPopup()">닫기</button>
+        <div class="edit-note">※ 행 = 사원 / 열 = 8공정 × 16세부공정 / 색상 = Level, 마우스를 올리면 총 횟수 확인</div>
+    </div>
+
+    <div class="summary-box heatmap-legend">
+        <span class="legend-item"><span class="color-box lv0"></span>미달</span>
+        <span class="legend-item"><span class="color-box lv1"></span>Level 1</span>
+        <span class="legend-item"><span class="color-box lv2"></span>Level 2</span>
+        <span class="legend-item"><span class="color-box lv3"></span>Level 3</span>
+        <span class="legend-item"><span class="color-box lv4"></span>Level 4</span>
+    </div>
+
+    <div class="heatmap-popup-wrap">
+        <table id="popupHeatmapTable" class="heatmap-popup-table">
+            <thead id="popupMatrixHead"></thead>
+            <tbody id="popupMatrixBody"></tbody>
+        </table>
+    </div>
+</div>
+</div>
+</div>
+
+<script>
+const processCount = 8;
+const detailCount = 16;
+
+let employees = [];
+let processSettings = {};
+
+function loadData() {
+    const saved = localStorage.getItem("memberLevelDataAuto");
+    employees = saved ? JSON.parse(saved) : [];
+
+    employees.forEach((emp, idx) => {
+        emp.no = idx + 1;
+        if (!emp.workCounts) emp.workCounts = {};
+        if (!emp.leaderWorkCounts) emp.leaderWorkCounts = {};
+        if (!emp.supportWorkCounts) emp.supportWorkCounts = {};
+        if (!emp.levels) emp.levels = {};
+        if (!emp.uploadHistory) emp.uploadHistory = [];
+        if (!emp.monthlyParticipation) emp.monthlyParticipation = {};
+        if (emp.leaderCount === undefined) emp.leaderCount = 0;
+        if (emp.supportCount === undefined) emp.supportCount = 0;
+    });
+}
+
+function initProcessSettings() {
+    processSettings = {};
+
+    for (let p = 1; p <= processCount; p++) {
+        processSettings[p] = { name: "공정 " + p, details: {} };
+
+        for (let d = 1; d <= detailCount; d++) {
+            processSettings[p].details[d] = "세부공정 " + d;
+        }
+    }
+}
+
+function loadSettings() {
+    const saved = localStorage.getItem("processSettingsData");
+    if (saved) {
+        processSettings = JSON.parse(saved);
+    } else {
+        initProcessSettings();
+    }
+
+    for (let p = 1; p <= processCount; p++) {
+        if (!processSettings[p]) processSettings[p] = { name: "공정 " + p, details: {} };
+        if (!processSettings[p].name) processSettings[p].name = "공정 " + p;
+        if (!processSettings[p].details) processSettings[p].details = {};
+
+        for (let d = 1; d <= detailCount; d++) {
+            if (!processSettings[p].details[d]) processSettings[p].details[d] = "세부공정 " + d;
+        }
+    }
+}
+
+function getProcessName(p) {
+    return processSettings[p]?.name || ("공정 " + p);
+}
+
+function getDetailName(p, d) {
+    return processSettings[p]?.details?.[d] || ("세부공정 " + d);
+}
+
+function getLevelByCount(count) {
+    count = Number(count) || 0;
+    if (count >= 200) return "4";
+    if (count >= 100) return "3";
+    if (count >= 50) return "2";
+    if (count >= 10) return "1";
+    return "";
+}
+
+function getBadge(level) {
+    const cls = level ? "lv" + level : "lv0";
+    const text = level ? "L" + level : "미달";
+    return `<span class="level-badge ${cls}">${text}</span>`;
+}
+
+function getCompactBadge(level) {
+    if (!level) {
+        return `<span class="level-dot" title="미달">·</span>`;
+    }
+
+    return `<span class="level-badge compact-level lv${level}">L${level}</span>`;
+}
+
+function getSelectedMonth() {
+    const input = document.getElementById("statMonth");
+    if (!input.value) input.value = new Date().toISOString().slice(0, 7);
+    return input.value;
+}
+
+function getMonthlyParticipation(emp, month) {
+    if (emp.monthlyParticipation && emp.monthlyParticipation[month]) {
+        return {
+            leader: Number(emp.monthlyParticipation[month].leaderCount) || 0,
+            support: Number(emp.monthlyParticipation[month].supportCount) || 0
+        };
+    }
+
+    return {
+        leader: Number(emp.leaderCount) || 0,
+        support: Number(emp.supportCount) || 0
+    };
+}
+
+function getMonthlyRoleCounts(emp, processNo, detailNo, month) {
+    const key = `p${processNo}_d${detailNo}`;
+
+    let leader = 0;
+    let support = 0;
+
+    if (emp.uploadHistory) {
+        emp.uploadHistory.forEach(item => {
+            const itemMonth = item.uploadMonth || (item.uploadDate ? item.uploadDate.slice(0, 7) : "");
+            if (itemMonth !== month) return;
+            if (Number(item.processNo) !== processNo || Number(item.detailNo) !== detailNo) return;
+
+            const daily = Number(item.dailyCount);
+            const currentLeader = Number(item.leaderCount);
+            const currentSupport = Number(item.supportCount);
+
+            // 업로드 이력 중 최신 누적값이 있으면 그 값을 우선 사용
+            if (!isNaN(currentLeader) || !isNaN(currentSupport)) {
+                leader = !isNaN(currentLeader) ? currentLeader : leader;
+                support = !isNaN(currentSupport) ? currentSupport : support;
+            } else if (!isNaN(daily)) {
+                support += daily;
+            }
+        });
+    }
+
+    // 월 이력이 없으면 현재 누적값 사용
+    if (leader === 0 && support === 0) {
+        leader = Number(emp.leaderWorkCounts?.[key]) || 0;
+        support = Number(emp.supportWorkCounts?.[key]) || 0;
+    }
+
+    const legacyTotal = Number(emp.workCounts?.[key]) || 0;
+    const total = leader + support || legacyTotal;
+
+    return { leader, support, total, level: getLevelByCount(total) };
+}
+
+function renderSummaryCards() {
+    const month = getSelectedMonth();
+
+    let totalLeader = 0;
+    let totalSupport = 0;
+
+    employees.forEach(emp => {
+        const p = getMonthlyParticipation(emp, month);
+        totalLeader += p.leader;
+        totalSupport += p.support;
+    });
+
+    document.getElementById("totalEmployees").innerText = employees.length;
+    document.getElementById("totalLeaderParticipation").innerText = totalLeader;
+    document.getElementById("totalSupportParticipation").innerText = totalSupport;
+    document.getElementById("totalParticipation").innerText = totalLeader + totalSupport;
+}
+
+function renderProcessSummary() {
+    const month = getSelectedMonth();
+    const tbody = document.getElementById("processSummaryBody");
+    tbody.innerHTML = "";
+
+    for (let p = 1; p <= processCount; p++) {
+        for (let d = 1; d <= detailCount; d++) {
+            let leaderSum = 0;
+            let supportSum = 0;
+            let totalSum = 0;
+            let lv1 = 0;
+            let lv2 = 0;
+            let lv3 = 0;
+            let lv4 = 0;
+            let none = 0;
+
+            employees.forEach(emp => {
+                const data = getMonthlyRoleCounts(emp, p, d, month);
+                leaderSum += data.leader;
+                supportSum += data.support;
+                totalSum += data.total;
+
+                if (data.level === "1") lv1++;
+                else if (data.level === "2") lv2++;
+                else if (data.level === "3") lv3++;
+                else if (data.level === "4") lv4++;
+                else none++;
+            });
+
+            tbody.innerHTML += `
+            <tr>
+                <td>${getProcessName(p)}</td>
+                <td>${getDetailName(p, d)}</td>
+                <td>${leaderSum}</td>
+                <td>${supportSum}</td>
+                <td>${totalSum}</td>
+                <td>${lv1}</td>
+                <td>${lv2}</td>
+                <td>${lv3}</td>
+                <td>${lv4}</td>
+                <td>${none}</td>
+            </tr>`;
+        }
+    }
+}
+
+function renderMatrix() {
+    const month = getSelectedMonth();
+    const head = document.getElementById("matrixHead");
+    const body = document.getElementById("matrixBody");
+
+    let header1 = `<tr class="matrix-head-1">
+        <th class="no-col" rowspan="2">No</th>
+        <th class="name-col" rowspan="2">성명</th>`;
+
+    for (let p = 1; p <= processCount; p++) {
+        header1 += `<th class="process-header" colspan="${detailCount}">${getProcessName(p)}</th>`;
+    }
+
+    header1 += "</tr>";
+
+    let header2 = `<tr class="matrix-head-2">`;
+
+    for (let p = 1; p <= processCount; p++) {
+        for (let d = 1; d <= detailCount; d++) {
+            const detailName = getDetailName(p, d);
+            const shortName = detailName.length > 6 ? detailName.substring(0, 6) + "…" : detailName;
+            header2 += `<th title="${detailName}">${shortName}</th>`;
+        }
+    }
+
+    header2 += "</tr>";
+
+    head.innerHTML = header1 + header2;
+    body.innerHTML = "";
+
+    employees.forEach(emp => {
+        let row = `<tr>
+            <td class="no-col">${emp.no}</td>
+            <td class="name-col">${emp.name}</td>`;
+
+        for (let p = 1; p <= processCount; p++) {
+            for (let d = 1; d <= detailCount; d++) {
+                const data = getMonthlyRoleCounts(emp, p, d, month);
+                row += `<td title="총 ${data.total}회">${getBadge(data.level)}</td>`;
+            }
+        }
+
+        row += "</tr>";
+        body.innerHTML += row;
+    });
+}
+
+
+
+function getEmployeeSummary(emp, month) {
+    const summary = { lv0:0, lv1:0, lv2:0, lv3:0, lv4:0 };
+
+    for (let p = 1; p <= processCount; p++) {
+        for (let d = 1; d <= detailCount; d++) {
+            const data = getMonthlyRoleCounts(emp, p, d, month);
+
+            if (data.level === "1") summary.lv1++;
+            else if (data.level === "2") summary.lv2++;
+            else if (data.level === "3") summary.lv3++;
+            else if (data.level === "4") summary.lv4++;
+            else summary.lv0++;
+        }
+    }
+
+    return summary;
+}
+
+function shortText(text, length) {
+    return text.length > length ? text.substring(0, length) + "…" : text;
+}
+
+function togglePopupDotMode() {
+    const table = document.getElementById("popupHeatmapTable");
+    const checked = document.getElementById("popupDotMode")?.checked;
+
+    if (!table) return;
+
+    if (checked) {
+        table.classList.add("hidden-text");
+    } else {
+        table.classList.remove("hidden-text");
+    }
+}
+
+
+function openMatrixPopup() {
+    renderPopupMatrix();
+    document.getElementById("matrixPopup").style.display = "block";
+}
+
+function closeMatrixPopup() {
+    document.getElementById("matrixPopup").style.display = "none";
+}
+
+function renderPopupMatrix() {
+    loadData();
+    loadSettings();
+
+    const month = getSelectedMonth();
+    document.getElementById("popupMonthLabel").innerText = month;
+
+    const head = document.getElementById("popupMatrixHead");
+    const body = document.getElementById("popupMatrixBody");
+
+    let row1 = `<tr>
+        <th class="no-col" rowspan="2">No</th>
+        <th class="name-col" rowspan="2">성명</th>
+        <th class="summary-col" rowspan="2">요약</th>`;
+
+    for (let p = 1; p <= processCount; p++) {
+        row1 += `<th class="process-head" colspan="${detailCount}">${getProcessName(p)}</th>`;
+    }
+
+    row1 += "</tr>";
+
+    let row2 = "<tr>";
+
+    for (let p = 1; p <= processCount; p++) {
+        for (let d = 1; d <= detailCount; d++) {
+            row2 += `<th title="${getDetailName(p,d)}">${shortText(getDetailName(p,d), 4)}</th>`;
+        }
+    }
+
+    row2 += "</tr>";
+    head.innerHTML = row1 + row2;
+    body.innerHTML = "";
+
+    employees.forEach(emp => {
+        const summary = getEmployeeSummary(emp, month);
+
+        let row = `<tr>
+            <td class="no-col">${emp.no}</td>
+            <td class="name-col">${emp.name}</td>
+            <td class="summary-col">
+                <div class="employee-summary">
+                    <span class="summary-chip lv4" title="L4">${summary.lv4}</span>
+                    <span class="summary-chip lv3" title="L3">${summary.lv3}</span>
+                    <span class="summary-chip lv2" title="L2">${summary.lv2}</span>
+                    <span class="summary-chip lv1" title="L1">${summary.lv1}</span>
+                    <span class="summary-chip lv0" title="미달">${summary.lv0}</span>
+                </div>
+            </td>`;
+
+        for (let p = 1; p <= processCount; p++) {
+            for (let d = 1; d <= detailCount; d++) {
+                const data = getMonthlyRoleCounts(emp, p, d, month);
+                const cls = data.level ? "lv" + data.level : "lv0";
+                const text = data.level ? data.level : "·";
+                const title = `${emp.name} / ${getProcessName(p)} / ${getDetailName(p,d)} / 총 ${data.total}회 / ${data.level ? "Level " + data.level : "미달"}`;
+
+                row += `<td class="level-cell ${cls}" title="${title}">${text}</td>`;
+            }
+        }
+
+        row += "</tr>";
+        body.innerHTML += row;
+    });
+
+    togglePopupDotMode();
+}
+
+
+function renderAll() {
+    loadData();
+    loadSettings();
+    renderSummaryCards();
+    renderProcessSummary();
+    renderMatrix();
+}
+
+function downloadExcel() {
+    if (typeof XLSX === "undefined") {
+        alert("엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결 상태를 확인하세요.");
+        return;
+    }
+
+    const month = getSelectedMonth();
+
+    const summaryRows = [[
+        "공정",
+        "세부공정",
+        "전 인원 리더 작업횟수",
+        "전 인원 보조 작업횟수",
+        "전 인원 총 작업횟수",
+        "Level 1 인원",
+        "Level 2 인원",
+        "Level 3 인원",
+        "Level 4 인원",
+        "미달 인원"
+    ]];
+
+    for (let p = 1; p <= processCount; p++) {
+        for (let d = 1; d <= detailCount; d++) {
+            let leaderSum = 0;
+            let supportSum = 0;
+            let totalSum = 0;
+            let lv1 = 0;
+            let lv2 = 0;
+            let lv3 = 0;
+            let lv4 = 0;
+            let none = 0;
+
+            employees.forEach(emp => {
+                const data = getMonthlyRoleCounts(emp, p, d, month);
+                leaderSum += data.leader;
+                supportSum += data.support;
+                totalSum += data.total;
+
+                if (data.level === "1") lv1++;
+                else if (data.level === "2") lv2++;
+                else if (data.level === "3") lv3++;
+                else if (data.level === "4") lv4++;
+                else none++;
+            });
+
+            summaryRows.push([
+                getProcessName(p),
+                getDetailName(p, d),
+                leaderSum,
+                supportSum,
+                totalSum,
+                lv1,
+                lv2,
+                lv3,
+                lv4,
+                none
+            ]);
+        }
+    }
+
+    const matrixRows = [];
+    let header = ["No", "성명"];
+
+    for (let p = 1; p <= processCount; p++) {
+        for (let d = 1; d <= detailCount; d++) {
+            header.push(getProcessName(p) + " - " + getDetailName(p, d));
+        }
+    }
+
+    matrixRows.push(header);
+
+    employees.forEach(emp => {
+        const row = [emp.no, emp.name];
+
+        for (let p = 1; p <= processCount; p++) {
+            for (let d = 1; d <= detailCount; d++) {
+                const data = getMonthlyRoleCounts(emp, p, d, month);
+                row.push(data.level ? "Level " + data.level + " (" + data.total + ")" : "미달 (" + data.total + ")");
+            }
+        }
+
+        matrixRows.push(row);
+    });
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), "공정별_월통계");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(matrixRows), "성명별_Level조회");
+
+    XLSX.writeFile(wb, "admin_level_stats_" + month + ".xlsx");
+}
+
+renderAll();
+</script>
+
+</body>
+</html>

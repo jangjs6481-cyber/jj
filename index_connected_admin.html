@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>회원별 공정 Level 자동관리</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 20px; background:#f4f6f8; }
+h1 { text-align:center; }
+.top-actions { text-align:right; margin-bottom:8px; }
+.admin-modal-content { width:95vw; max-width:95vw; min-width:95vw; overflow-x:auto; }
+.notice { background:#fff2cc; border:1px solid #d6b656; padding:10px; margin-bottom:12px; font-size:13px; }
+table { border-collapse: collapse; width:100%; background:white; }
+th, td { border:1px solid #ccc; padding:5px; text-align:center; font-size:12px; }
+th { background:#e8eef7; }
+input { padding:4px; font-size:12px; }
+.name-link { color:#1f4e79; font-weight:bold; cursor:pointer; text-decoration:underline; }
+.btn { padding:8px 14px; margin:5px; border:0; background:#2f5597; color:white; cursor:pointer; }
+.btn-gray { background:#666; }
+.modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.45); z-index:10; }
+.modal-content { background:white; margin:25px auto; padding:18px; width:13cm; max-width:13cm; min-width:13cm; height:85vh; overflow-y:auto; overflow-x:hidden; border-radius:6px; }
+.close { float:right; font-size:24px; cursor:pointer; }
+.process-title { margin-top:12px; font-weight:bold; background:#ddebf7; padding:6px; }
+.level-table td { height:22px; padding:3px; }
+.level-badge { display:inline-block; min-width:48px; padding:3px 6px; border-radius:12px; font-weight:bold; color:white; }
+.lv0 { background:#999; }
+.lv1 { background:#70ad47; }
+.lv2 { background:#5b9bd5; }
+.lv3 { background:#ffc000; color:#333; }
+.lv4 { background:#c00000; }
+.summary-box { margin:10px 0; padding:8px; background:#f2f2f2; font-weight:bold; font-size:13px; }
+.small { font-size:11px; color:#666; }
+.file-box { background:white; border:1px solid #ccc; padding:10px; margin-bottom:10px; }
+.count-input { width:70px; text-align:center; padding:2px; font-size:12px; }
+.edit-note { font-size:11px; color:#666; margin-top:4px; }
+.admin-detail-table { min-width:1300px; }
+.admin-detail-table th, .admin-detail-table td { white-space:nowrap; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<h1>회원별 공정 Level 자동관리 시스템</h1>
+<div class="top-actions"><button class="btn" onclick="openSettingsModal()">설정</button><button class="btn" onclick="location.href='admin_stats_popup_heatmap_view.html'">관리자 통계</button></div>
+
+<div class="notice">
+    <b>Level 자동 산정 기준</b><br>
+    Level 1 = 작업횟수 10회 이상 /
+    Level 2 = 작업횟수 50회 이상 /
+    Level 3 = 작업횟수 100회 이상 /
+    Level 4 = 작업횟수 200회 이상
+</div>
+
+<div class="file-box">
+    <b>데일리 마스터파일 업로드</b>
+    <input type="file" id="masterFile" accept=".csv,.txt">
+    <button class="btn" onclick="loadMasterFile()">마스터 반영</button>
+    <button class="btn btn-gray" onclick="downloadSample()">샘플 CSV 다운로드</button>
+    <button class="btn btn-gray" onclick="downloadBackup()">누적 백업 Excel 다운로드</button>
+    <div class="small">
+        파일 형식①: 성명,공정,세부공정,작업횟수,구분(리더/보조)<br>
+        파일 형식②: 성명,공정,세부공정,리더횟수,보조횟수<br>
+        예: 에이미,1,1,120,리더 / 에이미,1,2,30,90<br>※ 같은 항목을 다시 업로드하면 기존 횟수에 누적됩니다.
+    </div>
+</div>
+
+<button class="btn" onclick="saveDataAlert()">저장</button>
+<button class="btn" onclick="loadDataAlert()">불러오기</button>
+<button class="btn btn-gray" onclick="resetData()">초기화</button>
+<button class="btn" onclick="openEmployeeManageModal()">사원 관리</button>
+
+<table>
+<thead>
+<tr>
+    <th>No</th>
+    <th>성명</th>
+    <th>입사일</th>
+    <th>비고</th>
+</tr>
+</thead>
+<tbody id="memberList"></tbody>
+</table>
+
+<div id="levelModal" class="modal">
+<div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <h2 id="modalTitle"></h2>
+
+    <div class="summary-box">
+        참여월:
+        <input type="month" id="modalParticipationMonth"
+               onchange="changePopupParticipationMonth(this.value)">
+        <br><br>
+        리더참여횟수:
+        <input type="number" min="0" id="modalLeaderCount" class="count-input"
+               onchange="updatePopupParticipation('leaderCount', this.value)">
+        /
+        보조참여횟수:
+        <input type="number" min="0" id="modalSupportCount" class="count-input"
+               onchange="updatePopupParticipation('supportCount', this.value)">
+        <div class="edit-note">※ 참여월별로 리더/보조 참여횟수가 따로 저장됩니다.</div>
+    </div>
+
+    <div class="summary-box">
+        자동 산정 Level 현황:
+        Lv1 <span id="lv1Count">0</span>개 /
+        Lv2 <span id="lv2Count">0</span>개 /
+        Lv3 <span id="lv3Count">0</span>개 /
+        Lv4 <span id="lv4Count">0</span>개
+        <div class="edit-note">※ 작업횟수를 수정하면 Level이 즉시 자동 재계산됩니다.</div>
+    </div>
+
+    <div id="processArea"></div>
+
+    <button class="btn" onclick="saveDataAlert()">저장</button>
+    <button class="btn" onclick="closeModal()">닫기</button>
+</div>
+</div>
+
+
+
+
+<div id="employeeManageModal" class="modal">
+<div class="modal-content admin-modal-content">
+    <span class="close" onclick="closeEmployeeManageModal()">&times;</span>
+    <h2>사원 관리</h2>
+
+    <div class="summary-box">
+        사원을 추가하거나 성명 수정, 삭제할 수 있습니다.
+        <div class="edit-note">※ 사원 삭제 시 해당 사원의 Level, 작업횟수, 업로드 이력도 함께 삭제됩니다.</div>
+    </div>
+
+    <div class="summary-box">
+        신규 사원명:
+        <input id="newEmployeeName" style="width:180px;" placeholder="성명 입력">
+        입사일:
+        <input type="date" id="newEmployeeDate">
+        <button class="btn" onclick="addEmployee()">사원 추가</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width:60px;">No</th>
+                <th>성명</th>
+                <th style="width:140px;">입사일</th>
+                <th>비고</th>
+                <th style="width:100px;">삭제</th>
+            </tr>
+        </thead>
+        <tbody id="employeeManageBody"></tbody>
+    </table>
+
+    <button class="btn" onclick="saveDataAlert()">저장</button>
+    <button class="btn" onclick="closeEmployeeManageModal()">닫기</button>
+</div>
+</div>
+
+
+<div id="settingsModal" class="modal">
+<div class="modal-content admin-modal-content">
+    <span class="close" onclick="closeSettingsModal()">&times;</span>
+    <h2>공정 / 세부공정 명칭 설정</h2>
+
+    <div class="summary-box">
+        공정명과 세부공정명을 수정하면 각 사원 Level 상세 팝업에 자동 반영됩니다.
+        <div class="edit-note">※ 저장 후에도 브라우저에 설정값이 유지됩니다.</div>
+    </div>
+
+    <div id="settingsArea"></div>
+
+    <button class="btn" onclick="saveSettingsAlert()">설정 저장</button>
+    <button class="btn btn-gray" onclick="resetProcessNames()">공정명 초기화</button>
+    <button class="btn" onclick="closeSettingsModal()">닫기</button>
+</div>
+</div>
+
+
+<script>
+const employeeCount = 30;
+const processCount = 8;
+const detailCount = 16;
+
+let currentEmployee = null;
+let employees = [];
+let processSettings = {};
+
+function initEmployees() {
+    employees = [];
+
+    for (let i = 1; i <= employeeCount; i++) {
+        employees.push({
+            no: i,
+            name: i === 1 ? "에이미" : "사원" + i,
+            date: "",
+            leaderCount: 0,
+            supportCount: 0,
+            participationMonth: "",
+            monthlyParticipation: {},
+            note: "",
+            workCounts: {},
+            leaderWorkCounts: {},
+            supportWorkCounts: {},
+            levels: {},
+            uploadHistory: []
+        });
+    }
+}
+
+function getLevelByCount(count) {
+    count = Number(count) || 0;
+    if (count >= 200) return "4";
+    if (count >= 100) return "3";
+    if (count >= 50) return "2";
+    if (count >= 10) return "1";
+    return "";
+}
+
+
+
+function createEmptyEmployee(no, name, date) {
+    return {
+        no: no,
+        name: name || ("사원" + no),
+        date: date || "",
+        leaderCount: 0,
+        supportCount: 0,
+        participationMonth: "",
+        monthlyParticipation: {},
+        note: "",
+        workCounts: {},
+        leaderWorkCounts: {},
+        supportWorkCounts: {},
+        levels: {},
+        uploadHistory: []
+    };
+}
+
+function renumberEmployees() {
+    employees.forEach((emp, index) => {
+        emp.no = index + 1;
+    });
+}
+
+function openEmployeeManageModal() {
+    renderEmployeeManageList();
+    document.getElementById("employeeManageModal").style.display = "block";
+}
+
+function closeEmployeeManageModal() {
+    document.getElementById("employeeManageModal").style.display = "none";
+    renderMemberList();
+}
+
+function renderEmployeeManageList() {
+    const tbody = document.getElementById("employeeManageBody");
+    tbody.innerHTML = "";
+
+    employees.forEach((emp, index) => {
+        tbody.innerHTML += `
+        <tr>
+            <td>${index + 1}</td>
+            <td>
+                <input style="width:90%;" value="${emp.name || ""}"
+                       onchange="updateEmployeeManageField(${index}, 'name', this.value)">
+            </td>
+            <td>
+                <input type="date" value="${emp.date || ""}"
+                       onchange="updateEmployeeManageField(${index}, 'date', this.value)">
+            </td>
+            <td>
+                <input style="width:90%;" value="${emp.note || ""}"
+                       onchange="updateEmployeeManageField(${index}, 'note', this.value)">
+            </td>
+            <td>
+                <button class="btn btn-gray" onclick="deleteEmployee(${index})">삭제</button>
+            </td>
+        </tr>`;
+    });
+}
+
+function updateEmployeeManageField(index, field, value) {
+    employees[index][field] = value;
+    saveData();
+    renderMemberList();
+}
+
+function addEmployee() {
+    const nameInput = document.getElementById("newEmployeeName");
+    const dateInput = document.getElementById("newEmployeeDate");
+
+    const name = nameInput.value.trim();
+    const date = dateInput.value;
+
+    if (!name) {
+        alert("사원명을 입력하세요.");
+        return;
+    }
+
+    employees.push(createEmptyEmployee(employees.length + 1, name, date));
+    renumberEmployees();
+
+    nameInput.value = "";
+    dateInput.value = "";
+
+    saveData();
+    renderEmployeeManageList();
+    renderMemberList();
+
+    alert("사원이 추가되었습니다.");
+}
+
+function deleteEmployee(index) {
+    const emp = employees[index];
+
+    if (!confirm((emp.name || "해당 사원") + "을(를) 삭제하시겠습니까?\\n삭제 시 해당 사원의 모든 작업횟수와 Level 이력도 삭제됩니다.")) {
+        return;
+    }
+
+    employees.splice(index, 1);
+    renumberEmployees();
+
+    if (currentEmployee && currentEmployee > employees.length) {
+        currentEmployee = null;
+    }
+
+    saveData();
+    renderEmployeeManageList();
+    renderMemberList();
+
+    alert("삭제되었습니다.");
+}
+
+
+function initProcessSettings() {
+    processSettings = {};
+
+    for (let p = 1; p <= processCount; p++) {
+        processSettings[p] = {
+            name: "공정 " + p,
+            details: {}
+        };
+
+        for (let d = 1; d <= detailCount; d++) {
+            processSettings[p].details[d] = "세부공정 " + d;
+        }
+    }
+}
+
+function ensureProcessSettings() {
+    if (!processSettings || Object.keys(processSettings).length === 0) {
+        initProcessSettings();
+    }
+
+    for (let p = 1; p <= processCount; p++) {
+        if (!processSettings[p]) {
+            processSettings[p] = {
+                name: "공정 " + p,
+                details: {}
+            };
+        }
+
+        if (!processSettings[p].name) {
+            processSettings[p].name = "공정 " + p;
+        }
+
+        if (!processSettings[p].details) {
+            processSettings[p].details = {};
+        }
+
+        for (let d = 1; d <= detailCount; d++) {
+            if (!processSettings[p].details[d]) {
+                processSettings[p].details[d] = "세부공정 " + d;
+            }
+        }
+    }
+}
+
+function openSettingsModal() {
+    ensureProcessSettings();
+    renderSettingsArea();
+    document.getElementById("settingsModal").style.display = "block";
+}
+
+function closeSettingsModal() {
+    document.getElementById("settingsModal").style.display = "none";
+}
+
+function renderSettingsArea() {
+    ensureProcessSettings();
+
+    const area = document.getElementById("settingsArea");
+    area.innerHTML = "";
+
+    for (let p = 1; p <= processCount; p++) {
+        let html = `<div class="process-title">
+            공정 ${p} 명칭:
+            <input style="width:260px;" value="${processSettings[p].name}"
+                   onchange="updateProcessName(${p}, this.value)">
+        </div>`;
+
+        html += `
+        <table class="level-table">
+        <tr>
+            <th style="width:80px;">번호</th>
+            <th>세부공정 명칭</th>
+        </tr>`;
+
+        for (let d = 1; d <= detailCount; d++) {
+            html += `
+            <tr>
+                <td>세부 ${d}</td>
+                <td>
+                    <input style="width:95%;"
+                           value="${processSettings[p].details[d]}"
+                           onchange="updateDetailName(${p}, ${d}, this.value)">
+                </td>
+            </tr>`;
+        }
+
+        html += `</table>`;
+        area.innerHTML += html;
+    }
+}
+
+function updateProcessName(processNo, value) {
+    ensureProcessSettings();
+    processSettings[processNo].name = value || ("공정 " + processNo);
+    saveSettings();
+}
+
+function updateDetailName(processNo, detailNo, value) {
+    ensureProcessSettings();
+    processSettings[processNo].details[detailNo] = value || ("세부공정 " + detailNo);
+    saveSettings();
+}
+
+function saveSettings() {
+    localStorage.setItem("processSettingsData", JSON.stringify(processSettings));
+}
+
+function saveSettingsAlert() {
+    saveSettings();
+
+    if (currentEmployee) {
+        openModal(currentEmployee);
+    }
+
+    alert("설정이 저장되었습니다.");
+}
+
+function loadSettings() {
+    const saved = localStorage.getItem("processSettingsData");
+
+    if (saved) {
+        processSettings = JSON.parse(saved);
+    } else {
+        initProcessSettings();
+    }
+
+    ensureProcessSettings();
+}
+
+function resetProcessNames() {
+    if (!confirm("공정명과 세부공정명을 기본값으로 초기화하시겠습니까?")) {
+        return;
+    }
+
+    initProcessSettings();
+    saveSettings();
+    renderSettingsArea();
+
+    if (currentEmployee) {
+        openModal(currentEmployee);
+    }
+
+    alert("공정명이 초기화되었습니다.");
+}
+
+function getProcessName(processNo) {
+    ensureProcessSettings();
+    return processSettings[processNo]?.name || ("공정 " + processNo);
+}
+
+function getDetailName(processNo, detailNo) {
+    ensureProcessSettings();
+    return processSettings[processNo]?.details?.[detailNo] || ("세부공정 " + detailNo);
+}
+
+
+function renderMemberList() {
+    const tbody = document.getElementById("memberList");
+    tbody.innerHTML = "";
+
+    employees.forEach(emp => {
+        tbody.innerHTML += `
+        <tr>
+            <td>${emp.no}</td>
+            <td>
+                <span class="name-link" onclick="openModal(${emp.no})">${emp.name}</span><br>
+                <input value="${emp.name}" onchange="updateField(${emp.no}, 'name', this.value)">
+            </td>
+            <td><input type="date" value="${emp.date}" onchange="updateField(${emp.no}, 'date', this.value)"></td>
+            <td><input value="${emp.note}" placeholder="비고" onchange="updateField(${emp.no}, 'note', this.value)"></td>
+        </tr>`;
+    });
+}
+
+function openModal(empNo) {
+    currentEmployee = empNo;
+    const emp = employees[empNo - 1];
+
+    document.getElementById("modalTitle").innerText = emp.name + " 공정 Level 상세";
+
+    if (!emp.monthlyParticipation) emp.monthlyParticipation = {};
+
+    const monthInput = document.getElementById("modalParticipationMonth");
+    const leaderInput = document.getElementById("modalLeaderCount");
+    const supportInput = document.getElementById("modalSupportCount");
+
+    const currentMonth = emp.participationMonth || new Date().toISOString().slice(0, 7);
+    emp.participationMonth = currentMonth;
+
+    if (!emp.monthlyParticipation[currentMonth]) {
+        emp.monthlyParticipation[currentMonth] = {
+            leaderCount: Number(emp.leaderCount) || 0,
+            supportCount: Number(emp.supportCount) || 0
+        };
+    }
+
+    if (monthInput) monthInput.value = currentMonth;
+    if (leaderInput) leaderInput.value = emp.monthlyParticipation[currentMonth].leaderCount || 0;
+    if (supportInput) supportInput.value = emp.monthlyParticipation[currentMonth].supportCount || 0;
+
+    const area = document.getElementById("processArea");
+    area.innerHTML = "";
+
+    for (let p = 1; p <= processCount; p++) {
+        let html = `<div class="process-title">${getProcessName(p)}</div>`;
+        html += `
+        <table class="level-table">
+        <tr>
+            <th style="width:70px;">세부공정</th>
+            <th style="width:75px;">리더횟수</th>
+            <th style="width:75px;">보조횟수</th>
+            <th style="width:75px;">총횟수</th>
+            <th style="width:90px;">자동 Level</th>
+        </tr>`;
+
+        for (let d = 1; d <= detailCount; d++) {
+            const key = `p${p}_d${d}`;
+            if (!emp.leaderWorkCounts) emp.leaderWorkCounts = {};
+            if (!emp.supportWorkCounts) emp.supportWorkCounts = {};
+
+            const legacyCount = Number(emp.workCounts[key]) || 0;
+            const leaderCount = Number(emp.leaderWorkCounts[key]) || 0;
+            const supportCount = Number(emp.supportWorkCounts[key]) || 0;
+            const totalCount = leaderCount + supportCount || legacyCount;
+            emp.workCounts[key] = totalCount;
+            emp.levels[key] = getLevelByCount(totalCount);
+
+            const level = emp.levels[key] || "";
+            const badgeClass = level ? "lv" + level : "lv0";
+            const levelText = level ? "Level " + level : "미달";
+
+            html += `
+            <tr>
+                <td>${getDetailName(p, d)}</td>
+                <td>
+                    <input
+                        class="count-input"
+                        type="number"
+                        min="0"
+                        value="${leaderCount}"
+                        onchange="updateWorkRoleCount(${empNo}, '${key}', 'leader', this.value, ${p}, ${d})"
+                    >
+                </td>
+                <td>
+                    <input
+                        class="count-input"
+                        type="number"
+                        min="0"
+                        value="${supportCount}"
+                        onchange="updateWorkRoleCount(${empNo}, '${key}', 'support', this.value, ${p}, ${d})"
+                    >
+                </td>
+                <td><span id="total_${empNo}_${key}">${totalCount}</span></td>
+                <td><span id="badge_${empNo}_${key}" class="level-badge ${badgeClass}">${levelText}</span></td>
+            </tr>`;
+        }
+
+        html += `</table>`;
+        area.innerHTML += html;
+    }
+
+    updateModalSummary(empNo);
+    document.getElementById("levelModal").style.display = "block";
+}
+
+function closeModal() {
+    document.getElementById("levelModal").style.display = "none";
+    renderMemberList();
+}
+
+function updateField(empNo, field, value) {
+    employees[empNo - 1][field] = value;
+    renderMemberList();
+}
+
+
+
+function changePopupParticipationMonth(month) {
+    if (!currentEmployee) return;
+
+    const emp = employees[currentEmployee - 1];
+
+    if (!emp.monthlyParticipation) emp.monthlyParticipation = {};
+
+    emp.participationMonth = month;
+
+    if (!emp.monthlyParticipation[month]) {
+        emp.monthlyParticipation[month] = {
+            leaderCount: 0,
+            supportCount: 0
+        };
+    }
+
+    document.getElementById("modalLeaderCount").value = emp.monthlyParticipation[month].leaderCount || 0;
+    document.getElementById("modalSupportCount").value = emp.monthlyParticipation[month].supportCount || 0;
+
+    saveData();
+}
+
+function updatePopupParticipation(field, value) {
+    if (!currentEmployee) return;
+
+    const emp = employees[currentEmployee - 1];
+    const monthInput = document.getElementById("modalParticipationMonth");
+    const month = monthInput && monthInput.value ? monthInput.value : new Date().toISOString().slice(0, 7);
+    const count = Number(value) || 0;
+
+    if (count < 0) {
+        alert("참여횟수는 0 이상만 입력할 수 있습니다.");
+        openModal(currentEmployee);
+        return;
+    }
+
+    if (!emp.monthlyParticipation) emp.monthlyParticipation = {};
+
+    if (!emp.monthlyParticipation[month]) {
+        emp.monthlyParticipation[month] = {
+            leaderCount: 0,
+            supportCount: 0
+        };
+    }
+
+    emp.participationMonth = month;
+    emp.monthlyParticipation[month][field] = count;
+
+    // 기존 통계 호환용: 현재 선택월 값도 기존 필드에 반영
+    emp[field] = count;
+
+    saveData();
+}
+
+
+function updateWorkRoleCount(empNo, key, role, newValue, processNo, detailNo) {
+    const emp = employees[empNo - 1];
+
+    if (!emp.leaderWorkCounts) emp.leaderWorkCounts = {};
+    if (!emp.supportWorkCounts) emp.supportWorkCounts = {};
+    if (!emp.workCounts) emp.workCounts = {};
+    if (!emp.levels) emp.levels = {};
+
+    const previousTotal = Number(emp.workCounts[key]) || 0;
+    const newCount = Number(newValue) || 0;
+
+    if (newCount < 0) {
+        alert("작업횟수는 0 이상만 입력할 수 있습니다.");
+        openModal(empNo);
+        return;
+    }
+
+    if (role === "leader") {
+        emp.leaderWorkCounts[key] = newCount;
+    } else {
+        emp.supportWorkCounts[key] = newCount;
+    }
+
+    const leaderCount = Number(emp.leaderWorkCounts[key]) || 0;
+    const supportCount = Number(emp.supportWorkCounts[key]) || 0;
+    const totalCount = leaderCount + supportCount;
+
+    emp.workCounts[key] = totalCount;
+    emp.levels[key] = getLevelByCount(totalCount);
+
+    if (!emp.uploadHistory) emp.uploadHistory = [];
+
+    emp.uploadHistory.push({
+        uploadDate: new Date().toISOString().slice(0, 10),
+        uploadDateTime: new Date().toLocaleString("ko-KR"),
+        uploadMonth: new Date().toISOString().slice(0, 7),
+        name: emp.name,
+        processNo: processNo,
+        detailNo: detailNo,
+        dailyCount: role === "leader" ? "리더수정" : "보조수정",
+        leaderCount: leaderCount,
+        supportCount: supportCount,
+        previousCount: previousTotal,
+        accumulatedCount: totalCount,
+        level: getLevelByCount(totalCount)
+    });
+
+    const total = document.getElementById(`total_${empNo}_${key}`);
+    if (total) {
+        total.innerText = totalCount;
+    }
+
+    const badge = document.getElementById(`badge_${empNo}_${key}`);
+    if (badge) {
+        const level = emp.levels[key] || "";
+        badge.className = "level-badge " + (level ? "lv" + level : "lv0");
+        badge.innerText = level ? "Level " + level : "미달";
+    }
+
+    updateModalSummary(empNo);
+    saveData();
+}
+
+
+function updateWorkCount(empNo, key, newValue, processNo, detailNo) {
+    const emp = employees[empNo - 1];
+    const previousCount = Number(emp.workCounts[key]) || 0;
+    const newCount = Number(newValue) || 0;
+
+    if (newCount < 0) {
+        alert("작업횟수는 0 이상만 입력할 수 있습니다.");
+        openModal(empNo);
+        return;
+    }
+
+    emp.workCounts[key] = newCount;
+    emp.levels[key] = getLevelByCount(newCount);
+
+    if (!emp.uploadHistory) emp.uploadHistory = [];
+
+    emp.uploadHistory.push({
+        uploadDate: new Date().toISOString().slice(0, 10),
+        uploadDateTime: new Date().toLocaleString("ko-KR"),
+        name: emp.name,
+        processNo: processNo,
+        detailNo: detailNo,
+        dailyCount: "팝업수정",
+        previousCount: previousCount,
+        accumulatedCount: newCount,
+        level: getLevelByCount(newCount)
+    });
+
+    const badge = document.getElementById(`badge_${empNo}_${key}`);
+    if (badge) {
+        const level = emp.levels[key] || "";
+        badge.className = "level-badge " + (level ? "lv" + level : "lv0");
+        badge.innerText = level ? "Level " + level : "미달";
+    }
+
+    updateModalSummary(empNo);
+    saveData();
+}
+
+
+function updateModalSummary(empNo) {
+    const emp = employees[empNo - 1];
+
+    let lv1 = 0;
+    let lv2 = 0;
+    let lv3 = 0;
+    let lv4 = 0;
+
+    for (let p = 1; p <= processCount; p++) {
+        for (let d = 1; d <= detailCount; d++) {
+            const key = `p${p}_d${d}`;
+            const value = emp.levels[key];
+
+            if (value === "1") lv1++;
+            if (value === "2") lv2++;
+            if (value === "3") lv3++;
+            if (value === "4") lv4++;
+        }
+    }
+
+    document.getElementById("lv1Count").innerText = lv1;
+    document.getElementById("lv2Count").innerText = lv2;
+    document.getElementById("lv3Count").innerText = lv3;
+    document.getElementById("lv4Count").innerText = lv4;
+}
+
+function loadMasterFile() {
+    const fileInput = document.getElementById("masterFile");
+
+    if (!fileInput.files.length) {
+        alert("마스터 파일을 선택하세요.");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        applyMasterData(e.target.result);
+    };
+    reader.readAsText(fileInput.files[0], "UTF-8");
+}
+
+function applyMasterData(text) {
+    const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
+    const uploadDate = new Date().toISOString().slice(0, 10);
+    const uploadDateTime = new Date().toLocaleString("ko-KR");
+    let applyCount = 0;
+
+    lines.forEach((line, index) => {
+        const cols = line.split(",").map(v => v.trim());
+
+        if (index === 0 && cols[0].includes("성명")) return;
+        if (cols.length < 4) return;
+
+        const name = cols[0];
+        const processNo = Number(cols[1]);
+        const detailNo = Number(cols[2]);
+        const rawCount = Number(cols[3]);
+        const roleOrSupport = cols.length >= 5 ? cols[4] : "";
+        let leaderDailyCount = 0;
+        let supportDailyCount = 0;
+        let workCount = rawCount;
+
+        if (!isNaN(Number(roleOrSupport)) && roleOrSupport !== "") {
+            leaderDailyCount = Number(cols[3]) || 0;
+            supportDailyCount = Number(cols[4]) || 0;
+            workCount = leaderDailyCount + supportDailyCount;
+        } else if (String(roleOrSupport).includes("리더")) {
+            leaderDailyCount = rawCount;
+            supportDailyCount = 0;
+        } else if (String(roleOrSupport).includes("보조")) {
+            leaderDailyCount = 0;
+            supportDailyCount = rawCount;
+        } else {
+            leaderDailyCount = 0;
+            supportDailyCount = rawCount;
+        }
+
+        if (!name || processNo < 1 || processNo > 8 || detailNo < 1 || detailNo > 16) return;
+
+        const emp = employees.find(e => e.name === name);
+        if (!emp) return;
+
+        const key = `p${processNo}_d${detailNo}`;
+
+        if (!emp.leaderWorkCounts) emp.leaderWorkCounts = {};
+        if (!emp.supportWorkCounts) emp.supportWorkCounts = {};
+
+        // 데일리 업로드 누적 방식:
+        // 기존 리더/보조 작업횟수 + 이번 업로드 횟수 = 누적 작업횟수
+        const previousLeaderCount = Number(emp.leaderWorkCounts[key]) || 0;
+        const previousSupportCount = Number(emp.supportWorkCounts[key]) || 0;
+        const previousCount = previousLeaderCount + previousSupportCount || Number(emp.workCounts[key]) || 0;
+
+        const accumulatedLeaderCount = previousLeaderCount + leaderDailyCount;
+        const accumulatedSupportCount = previousSupportCount + supportDailyCount;
+        const accumulatedCount = accumulatedLeaderCount + accumulatedSupportCount;
+
+        emp.leaderWorkCounts[key] = accumulatedLeaderCount;
+        emp.supportWorkCounts[key] = accumulatedSupportCount;
+        emp.workCounts[key] = accumulatedCount;
+        emp.levels[key] = getLevelByCount(accumulatedCount);
+
+        if (!emp.uploadHistory) emp.uploadHistory = [];
+
+        emp.uploadHistory.push({
+            uploadDate: uploadDate,
+            uploadDateTime: uploadDateTime,
+            uploadMonth: uploadDate.slice(0, 7),
+            name: name,
+            processNo: processNo,
+            detailNo: detailNo,
+            dailyCount: workCount,
+            leaderCount: accumulatedLeaderCount,
+            supportCount: accumulatedSupportCount,
+            previousCount: previousCount,
+            accumulatedCount: accumulatedCount,
+            level: getLevelByCount(accumulatedCount)
+        });
+
+        applyCount++;
+    });
+
+    saveData();
+    renderMemberList();
+
+    if (currentEmployee) openModal(currentEmployee);
+
+    alert("마스터 파일 누적 반영 완료: " + applyCount + "건");
+}
+
+function downloadSample() {
+    const sample =
+`성명,공정,세부공정,작업횟수,구분
+에이미,1,1,5,보조
+에이미,1,2,10,리더
+에이미,1,3,50,보조
+에이미,1,4,100,리더
+에이미,1,5,200,보조
+에이미,2,1,130,리더
+에이미,8,16,250,보조`;
+
+    const blob = new Blob([sample], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "daily_master_sample.csv";
+    a.click();
+
+    URL.revokeObjectURL(url);
+}
+
+
+function downloadBackup() {
+    let rows = [];
+
+    rows.push([
+        "업로드일자",
+        "업로드일시",
+        "성명",
+        "공정",
+        "세부공정",
+        "당일작업횟수",
+        "리더누적횟수",
+        "보조누적횟수",
+        "이전누적횟수",
+        "현재누적횟수",
+        "자동Level"
+    ]);
+
+    employees.forEach(emp => {
+        if (!emp.uploadHistory) return;
+
+        emp.uploadHistory.forEach(item => {
+            rows.push([
+                item.uploadDate || "",
+                item.uploadDateTime || "",
+                item.name || emp.name,
+                item.processNo || "",
+                item.detailNo || "",
+                item.dailyCount || 0,
+                item.leaderCount || 0,
+                item.supportCount || 0,
+                item.previousCount || 0,
+                item.accumulatedCount || 0,
+                item.level ? "Level " + item.level : "미달"
+            ]);
+        });
+    });
+
+    if (rows.length === 1) {
+        alert("백업할 누적 업로드 데이터가 없습니다.");
+        return;
+    }
+
+    if (typeof XLSX === "undefined") {
+        alert("엑셀 백업 라이브러리를 불러오지 못했습니다. 인터넷 연결 상태를 확인하세요.");
+        return;
+    }
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+
+    ws["!cols"] = [
+        { wch: 12 },
+        { wch: 22 },
+        { wch: 12 },
+        { wch: 8 },
+        { wch: 10 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 12 }
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Level_Backup");
+
+    const today = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, "level_backup_" + today + ".xlsx");
+}
+
+
+
+function getSelectedAdminMonth() {
+    const input = document.getElementById("adminMonth");
+    if (!input.value) {
+        input.value = new Date().toISOString().slice(0, 7);
+    }
+    return input.value;
+}
+
+function getMonthlyWorkTotal(emp, month) {
+    let total = 0;
+
+    if (!emp.uploadHistory) return total;
+
+    emp.uploadHistory.forEach(item => {
+        const itemMonth = item.uploadMonth || (item.uploadDate ? item.uploadDate.slice(0, 7) : "");
+        if (itemMonth !== month) return;
+
+        const daily = Number(item.dailyCount);
+        if (!isNaN(daily)) {
+            total += daily;
+        }
+    });
+
+    return total;
+}
+
+function getLevelCounts(emp) {
+    let lv1 = 0;
+    let lv2 = 0;
+    let lv3 = 0;
+    let lv4 = 0;
+
+    for (let p = 1; p <= processCount; p++) {
+        for (let d = 1; d <= detailCount; d++) {
+            const key = `p${p}_d${d}`;
+            const value = emp.levels[key];
+
+            if (value === "1") lv1++;
+            if (value === "2") lv2++;
+            if (value === "3") lv3++;
+            if (value === "4") lv4++;
+        }
+    }
+
+    return { lv1, lv2, lv3, lv4 };
+}
+
+function openAdminModal() {
+    const input = document.getElementById("adminMonth");
+    if (!input.value) {
+        input.value = new Date().toISOString().slice(0, 7);
+    }
+    renderAdminStats();
+    document.getElementById("adminModal").style.display = "block";
+}
+
+function closeAdminModal() {
+    document.getElementById("adminModal").style.display = "none";
+}
+
+function buildAdminStatsRows() {
+    const month = getSelectedAdminMonth();
+    const rows = [];
+
+    employees.forEach(emp => {
+        let leaderParticipation = 0;
+        let supportParticipation = 0;
+
+        if (emp.monthlyParticipation && emp.monthlyParticipation[month]) {
+            leaderParticipation = Number(emp.monthlyParticipation[month].leaderCount) || 0;
+            supportParticipation = Number(emp.monthlyParticipation[month].supportCount) || 0;
+        } else {
+            leaderParticipation = Number(emp.leaderCount) || 0;
+            supportParticipation = Number(emp.supportCount) || 0;
+        }
+
+        const totalParticipation = leaderParticipation + supportParticipation;
+
+        for (let p = 1; p <= processCount; p++) {
+            for (let d = 1; d <= detailCount; d++) {
+                const key = `p${p}_d${d}`;
+
+                const leaderWork = Number(emp.leaderWorkCounts?.[key]) || 0;
+                const supportWork = Number(emp.supportWorkCounts?.[key]) || 0;
+                const legacyTotal = Number(emp.workCounts?.[key]) || 0;
+                const totalWork = leaderWork + supportWork || legacyTotal;
+                const level = getLevelByCount(totalWork);
+
+                rows.push({
+                    no: emp.no,
+                    name: emp.name,
+                    leaderParticipation,
+                    supportParticipation,
+                    totalParticipation,
+                    processName: getProcessName(p),
+                    detailName: getDetailName(p, d),
+                    leaderWork,
+                    supportWork,
+                    totalWork,
+                    level: level ? "Level " + level : "미달"
+                });
+            }
+        }
+    });
+
+    return rows;
+}
+
+function renderAdminStats() {
+    const rows = buildAdminStatsRows();
+    const tbody = document.getElementById("adminStatsBody");
+    const tfoot = document.getElementById("adminStatsFoot");
+
+    tbody.innerHTML = "";
+
+    let sumLeaderParticipation = 0;
+    let sumSupportParticipation = 0;
+    let sumTotalParticipation = 0;
+    let sumLeaderWork = 0;
+    let sumSupportWork = 0;
+    let sumTotalWork = 0;
+    let lv1 = 0;
+    let lv2 = 0;
+    let lv3 = 0;
+    let lv4 = 0;
+
+    rows.forEach(row => {
+        sumLeaderWork += row.leaderWork;
+        sumSupportWork += row.supportWork;
+        sumTotalWork += row.totalWork;
+
+        if (row.level === "Level 1") lv1++;
+        if (row.level === "Level 2") lv2++;
+        if (row.level === "Level 3") lv3++;
+        if (row.level === "Level 4") lv4++;
+
+        tbody.innerHTML += `
+        <tr>
+            <td>${row.no}</td>
+            <td>${row.name}</td>
+            <td>${row.leaderParticipation}</td>
+            <td>${row.supportParticipation}</td>
+            <td>${row.totalParticipation}</td>
+            <td>${row.processName}</td>
+            <td>${row.detailName}</td>
+            <td>${row.leaderWork}</td>
+            <td>${row.supportWork}</td>
+            <td>${row.totalWork}</td>
+            <td>${row.level}</td>
+        </tr>`;
+    });
+
+    // 참여횟수는 사원별 값이 반복 표시되므로 합계는 사원 기준으로 별도 계산
+    employees.forEach(emp => {
+        const month = getSelectedAdminMonth();
+        let leader = 0;
+        let support = 0;
+
+        if (emp.monthlyParticipation && emp.monthlyParticipation[month]) {
+            leader = Number(emp.monthlyParticipation[month].leaderCount) || 0;
+            support = Number(emp.monthlyParticipation[month].supportCount) || 0;
+        } else {
+            leader = Number(emp.leaderCount) || 0;
+            support = Number(emp.supportCount) || 0;
+        }
+
+        sumLeaderParticipation += leader;
+        sumSupportParticipation += support;
+        sumTotalParticipation += leader + support;
+    });
+
+    tfoot.innerHTML = `
+    <tr>
+        <th colspan="2">합계</th>
+        <th>${sumLeaderParticipation}</th>
+        <th>${sumSupportParticipation}</th>
+        <th>${sumTotalParticipation}</th>
+        <th colspan="2">Level 현황: Lv1 ${lv1} / Lv2 ${lv2} / Lv3 ${lv3} / Lv4 ${lv4}</th>
+        <th>${sumLeaderWork}</th>
+        <th>${sumSupportWork}</th>
+        <th>${sumTotalWork}</th>
+        <th>-</th>
+    </tr>`;
+}
+
+function downloadAdminStatsExcel() {
+    if (typeof XLSX === "undefined") {
+        alert("엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결 상태를 확인하세요.");
+        return;
+    }
+
+    const month = getSelectedAdminMonth();
+    const rows = buildAdminStatsRows();
+
+    const excelRows = [
+        ["기준월", month],
+        [],
+        [
+            "No",
+            "성명",
+            "리더참여횟수",
+            "보조참여횟수",
+            "총참여횟수",
+            "공정",
+            "세부공정",
+            "리더 작업횟수",
+            "보조 작업횟수",
+            "총 작업횟수",
+            "Level"
+        ]
+    ];
+
+    rows.forEach(row => {
+        excelRows.push([
+            row.no,
+            row.name,
+            row.leaderParticipation,
+            row.supportParticipation,
+            row.totalParticipation,
+            row.processName,
+            row.detailName,
+            row.leaderWork,
+            row.supportWork,
+            row.totalWork,
+            row.level
+        ]);
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(excelRows);
+
+    ws["!cols"] = [
+        { wch: 8 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 18 },
+        { wch: 22 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 12 }
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Level_Detail");
+    XLSX.writeFile(wb, "level_detail_stats_" + month + ".xlsx");
+}
+
+
+function saveData() {
+    localStorage.setItem("memberLevelDataAuto", JSON.stringify(employees));
+}
+
+function saveDataAlert() {
+    saveData();
+    alert("저장되었습니다.");
+}
+
+function loadData() {
+    const saved = localStorage.getItem("memberLevelDataAuto");
+    if (!saved) return;
+
+    employees = JSON.parse(saved);
+
+    employees.forEach(emp => {
+        if (!emp.workCounts) emp.workCounts = {};
+        if (!emp.leaderWorkCounts) emp.leaderWorkCounts = {};
+        if (!emp.supportWorkCounts) emp.supportWorkCounts = {};
+        if (!emp.levels) emp.levels = {};
+        if (!emp.uploadHistory) emp.uploadHistory = [];
+        if (emp.leaderCount === undefined) emp.leaderCount = 0;
+        if (emp.supportCount === undefined) emp.supportCount = 0;
+        if (!emp.monthlyParticipation) emp.monthlyParticipation = {};
+        if (!emp.participationMonth) emp.participationMonth = new Date().toISOString().slice(0, 7);
+    });
+
+    renumberEmployees();
+    renderMemberList();
+    if (currentEmployee) updateModalSummary(currentEmployee);
+}
+
+function loadDataAlert() {
+    loadData();
+    alert("불러왔습니다.");
+}
+
+function resetData() {
+    if (confirm("모든 데이터를 초기화하시겠습니까?")) {
+        localStorage.removeItem("memberLevelDataAuto");
+        employees = [];
+        initEmployees();
+        renderMemberList();
+    }
+}
+
+initProcessSettings();
+loadSettings();
+initEmployees();
+loadData();
+renderMemberList();
+</script>
+
+</body>
+</html>
