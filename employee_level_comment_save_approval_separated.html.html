@@ -1,0 +1,2173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>데일리 작업 인원별 참여횟수 누적 저장</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body{font-family:Arial,'Malgun Gothic',sans-serif;margin:0;background:#f4f6f9;color:#222}
+.header{background:#1f4e79;color:#fff;padding:18px 28px}
+.header h1{margin:0;font-size:22px}.wrap{padding:22px}.toolbar{background:#fff;border:1px solid #d8dee8;padding:14px;margin-bottom:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.btn{border:0;background:#2f5597;color:white;padding:9px 14px;cursor:pointer;border-radius:4px;font-weight:bold}.btn.gray{background:#666}.btn.red{background:#b23b3b}.btn.green{background:#3f7f3f}.card{background:#fff;border:1px solid #d8dee8;padding:16px;margin-bottom:14px;border-radius:6px}.card h2{font-size:17px;margin:0 0 10px}.card-title-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}.card-title-row h2{margin:0}.input-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.input-area{width:100%;height:230px;box-sizing:border-box;padding:10px;font-size:13px;line-height:1.45;border:1px solid #bbb;border-radius:4px;resize:vertical}.converted-area{width:100%;height:230px;box-sizing:border-box;padding:10px;font-size:12px;line-height:1.45;border:1px solid #bbb;border-radius:4px;resize:vertical;background:#fbfcff}.small{font-size:12px;color:#666;margin-top:6px}.warn{color:#b23b3b;font-weight:bold}.ok{color:#2f6b2f;font-weight:bold}table{border-collapse:collapse;width:100%;background:#fff;min-width:1800px}th,td{border:1px solid #ccc;padding:6px;text-align:center;font-size:12px;white-space:nowrap}th{background:#e8eef7;position:sticky;top:0;z-index:1}.table-box{overflow:auto;max-height:520px;border:1px solid #ccc}.summary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}.pill{background:#eef3f8;border:1px solid #c7d3e2;border-radius:20px;padding:7px 12px;font-size:13px;font-weight:bold}.input-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.modal{display:none;position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:20}
+.modal-content{background:#fff;margin:28px auto;padding:18px;border-radius:8px;width:94vw;max-width:1400px;height:86vh;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.modal-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.modal-head h2{margin:0;font-size:18px}.close{font-size:26px;font-weight:bold;cursor:pointer;color:#333}.skill-summary{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 12px}.skill-table{min-width:2200px}.excel-filter{position:relative;display:inline-block}.filter-toggle{background:#fff;border:1px solid #bbb;border-radius:4px;padding:6px 10px;cursor:pointer;min-width:180px;text-align:left}.filter-panel{display:none;position:absolute;top:34px;left:0;background:#fff;border:1px solid #bbb;border-radius:6px;box-shadow:0 8px 18px rgba(0,0,0,.18);padding:10px;width:260px;max-height:320px;overflow:auto;z-index:50}.filter-panel.show{display:block}.filter-search{width:100%;box-sizing:border-box;padding:6px;border:1px solid #ccc;border-radius:4px;margin-bottom:8px}.filter-actions{display:flex;gap:6px;margin-bottom:8px}.filter-actions button{border:1px solid #bbb;background:#f5f5f5;border-radius:4px;padding:4px 7px;cursor:pointer;font-size:12px}.filter-list label{display:block;padding:4px 2px;font-size:12px}.chart-box{background:#fff;border:1px solid #d8dee8;border-radius:6px;padding:14px;margin-top:14px;height:340px;box-sizing:border-box}.check-list{display:flex;gap:8px;flex-wrap:wrap;max-width:780px;align-items:center}.check-item{background:#fff;border:1px solid #c7d3e2;border-radius:14px;padding:5px 9px;font-size:12px}.chart-box{background:#fff;border:1px solid #d8dee8;border-radius:6px;padding:14px;margin-top:14px;height:340px;box-sizing:border-box}.multi-select{padding:5px 8px;border:1px solid #bbb;border-radius:4px;min-width:180px;height:95px;vertical-align:middle}.chart-box{background:#fff;border:1px solid #d8dee8;border-radius:6px;padding:14px;margin-top:14px;height:320px;box-sizing:border-box}
+.talent-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.talent-tab{border:1px solid #b8c6d8;background:#eef3f8;border-radius:18px;padding:8px 12px;font-weight:bold;cursor:pointer}.talent-tab.active{background:#2f5597;color:#fff}.talent-panel{border:1px solid #d8dee8;border-radius:6px;padding:16px;background:#fbfcff}.talent-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.talent-box{border:1px solid #d8dee8;background:#fff;border-radius:6px;padding:12px}.talent-box h3{margin:0 0 8px;font-size:15px}@media(max-width:900px){.input-grid{grid-template-columns:1fr}.talent-grid{grid-template-columns:1fr}}
+
+.app-layout{display:flex;min-height:calc(100vh - 58px)}
+.side-menu{width:230px;background:#fff;border-right:1px solid #d8dee8;padding:14px;position:sticky;top:0;height:calc(100vh - 58px);overflow:auto;box-sizing:border-box}
+.side-menu button{display:block;width:100%;margin:5px 0;text-align:left;background:#eef3f8;color:#123;border:1px solid #c7d3e2;border-radius:8px;padding:10px 12px;font-weight:bold;cursor:pointer}
+.side-menu button.active{background:#1f4e79;color:#fff;border-color:#1f4e79}
+.main-area{flex:1;padding:22px;overflow:auto}.page.hidden{display:none}.wrap{padding:0}.toolbar .right-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}.panel-page{background:#fff;border:1px solid #d8dee8;padding:16px;border-radius:6px;margin-bottom:14px}.panel-page h2{font-size:18px;margin:0 0 12px;color:#1f4e79}.editable-table{min-width:1200px}.editable-table input,.editable-table select{width:100%;box-sizing:border-box;border:1px solid #c7d3e2;border-radius:4px;padding:5px 6px;font-size:12px}.person-add-panel{background:#fbfcff;border:1px solid #d8dee8;border-radius:6px;padding:12px;margin:10px 0 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.person-add-panel input,.person-add-panel select{padding:7px 9px;border:1px solid #bbb;border-radius:4px;min-width:180px}.level-matrix{min-width:1850px}.level-matrix th,.level-matrix td{font-size:11px;padding:5px}.level-cell{font-weight:bold;color:#1f4e79}.badge-note{background:#eef3f8;border:1px solid #c7d3e2;border-radius:8px;padding:10px 12px;margin-bottom:12px;color:#444;font-size:13px}.top-title{font-weight:bold;color:#1f4e79;margin-right:10px}
+@media(max-width:900px){.app-layout{display:block}.side-menu{width:100%;height:auto;position:relative}.main-area{padding:14px}.toolbar .right-actions{margin-left:0}}
+
+
+.level-grant-select{min-width:140px;padding:7px 9px;border:1px solid #c7d3e2;border-radius:6px;background:#fff}
+.level-comment-input{min-width:260px;width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid #c7d3e2;border-radius:6px}
+.level-save-msg{font-size:12px;color:#2f6b2f;margin-left:6px}
+
+
+.level-no-col{width:48px;min-width:48px}
+.level-name-col{width:90px;min-width:90px}
+.level-small-col{width:110px;min-width:110px}
+.level-date-input{width:130px;box-sizing:border-box;padding:7px 9px;border:1px solid #c7d3e2;border-radius:6px}
+.level-process-select,.level-work-select,.level-level-select{min-width:130px;padding:7px 9px;border:1px solid #c7d3e2;border-radius:6px;background:#fff}
+.level-comment-input{min-width:220px;width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid #c7d3e2;border-radius:6px}
+.level-grant-select{min-width:120px;padding:7px 9px;border:1px solid #c7d3e2;border-radius:6px;background:#fff}
+.level-save-msg{font-size:12px;color:#2f6b2f;margin-left:6px}
+
+
+.level-rollback-box{background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 12px;margin:10px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.level-rollback-box input{padding:7px 9px;border:1px solid #c7d3e2;border-radius:6px}
+
+.level-restore-check{width:18px;height:18px;cursor:pointer}
+.level-log-btn{background:#6b7280;color:#fff;border:0;padding:7px 10px;border-radius:4px;font-weight:bold;cursor:pointer}
+.restore-log-modal{display:none;position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:100}
+.restore-log-content{background:#fff;margin:40px auto;padding:18px;border-radius:8px;width:92vw;max-width:1200px;max-height:84vh;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.restore-log-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.restore-log-head h2{margin:0;font-size:18px;color:#1f4e79}.restore-log-close{font-size:26px;font-weight:bold;cursor:pointer;color:#333}
+.restore-log-filter{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;background:#fbfcff;border:1px solid #d8dee8;border-radius:6px;padding:10px}
+.restore-log-filter select,.restore-log-filter input{padding:6px 8px;border:1px solid #bbb;border-radius:4px}
+.restore-log-table{min-width:980px}
+
+.level-approve-needed{background:#fff7cc}
+.level-approve-needed td{font-weight:600}
+.level-approve-badge{display:inline-block;background:#f59e0b;color:#111;border-radius:12px;padding:2px 8px;font-size:11px;font-weight:bold;margin-left:6px}
+.level-ok-badge{display:inline-block;background:#dcfce7;color:#166534;border-radius:12px;padding:2px 8px;font-size:11px;font-weight:bold;margin-left:6px}
+.level-wait-badge{display:inline-block;background:#eef3f8;color:#444;border-radius:12px;padding:2px 8px;font-size:11px;font-weight:bold;margin-left:6px}
+
+.level-manual-panel{background:#fbfcff;border:1px solid #d8dee8;border-radius:8px;padding:10px 12px;margin:10px 0 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.level-manual-panel input{padding:7px 9px;border:1px solid #bbb;border-radius:6px;min-width:180px}
+.level-manual-name-input{width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid #bbb;border-radius:6px}
+
+
+
+.kmi-return-bar{
+  position:sticky;
+  top:0;
+  z-index:999;
+  background:#0f5364;
+  color:#fff;
+  border-bottom:4px solid #f5b21b;
+  padding:12px 20px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  box-shadow:0 4px 14px rgba(0,0,0,.16);
+}
+.kmi-return-title{
+  font-weight:bold;
+  font-size:16px;
+}
+.kmi-return-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.kmi-return-actions a{
+  color:#0f5364;
+  background:#fff;
+  text-decoration:none;
+  padding:8px 13px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:bold;
+}
+.kmi-return-actions a.primary{
+  background:#f5b21b;
+  color:#08333e;
+}
+@media(max-width:700px){
+  .kmi-return-bar{align-items:flex-start;flex-direction:column}
+}
+
+
+@media print{
+  @page{size:A4 landscape;margin:10mm}
+  body{background:#fff!important;color:#000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .kmi-return-bar,.side-menu,.toolbar .right-actions,button,.btn,.input-grid,.modal,.restore-log-modal{display:none!important}
+  .app-layout{display:block!important;min-height:auto!important}
+  .main-area{padding:0!important}
+  .page.hidden{display:none!important}
+  .panel-page,.card{border:0!important;box-shadow:none!important;padding:0!important;margin:0 0 10px!important}
+  .table-box{overflow:visible!important;max-height:none!important;border:0!important}
+  table{width:100%!important;min-width:0!important;border-collapse:collapse!important}
+  th,td{border:1px solid #999!important;padding:4px!important;font-size:9px!important;white-space:normal!important}
+  th{background:#e8eef7!important;color:#000!important}
+  .header{background:#fff!important;color:#000!important;border-bottom:2px solid #1f4e79!important;padding:0 0 8px!important;margin-bottom:10px!important}
+  .header h1{font-size:18px!important}
+}
+
+</style>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getAuth,
+      signInWithEmailAndPassword,
+      signOut,
+      onAuthStateChanged,
+      setPersistence,
+      browserLocalPersistence
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDWEipgw0cy2Ag7NJC1B_I9W3u9QEJdixQ",
+      authDomain: "kmi-tech-system.firebaseapp.com",
+      projectId: "kmi-tech-system",
+      storageBucket: "kmi-tech-system.firebasestorage.app",
+      messagingSenderId: "861105122393",
+      appId: "1:861105122393:web:b084fc3e9b8c5f9427d548",
+      measurementId: "G-ZH45G61J8W"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    window.firebaseAuth = auth;
+    window.firebaseSignIn = signInWithEmailAndPassword;
+    window.firebaseSignOut = signOut;
+    window.firebaseOnAuthStateChanged = onAuthStateChanged;
+    window.firebaseAuthReady = setPersistence(auth, browserLocalPersistence).then(() => auth);
+  </script>
+
+
+<style>
+  body.firebase-locked .kmi-return-bar,
+  body.firebase-locked .header,
+  body.firebase-locked .app-layout{display:none!important}
+  .auth-screen{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0f5364,#08333e);padding:24px}
+  .auth-card{width:min(460px,100%);background:#fff;border-radius:26px;padding:30px;box-shadow:0 30px 80px rgba(0,0,0,.32)}
+  .auth-card h2{margin:0 0 8px;text-align:center;color:#08333e}.auth-card p{color:#667085;line-height:1.6;font-size:14px;text-align:center;margin-bottom:18px}
+  .auth-form{display:grid;gap:12px}.auth-form input{width:100%;border:1px solid #e5edf2;border-radius:12px;padding:12px;font-size:14px;margin-top:7px}.auth-form label{font-weight:bold;color:#08333e}
+  .auth-error{display:none;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.5;margin-bottom:12px}
+  .auth-note{background:#f8fafc;border:1px solid #e5edf2;border-radius:12px;padding:10px 12px;color:#667085;font-size:13px;line-height:1.5;margin-top:12px}
+</style>
+
+</head>
+<body class="firebase-locked">
+
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <h2>Firebase 로그인</h2>
+    <p>KMI TECH 직무인증 관리는 Firebase 계정으로 로그인해야 사용할 수 있습니다.</p>
+    <div class="auth-error" id="authError"></div>
+    <div class="auth-form">
+      <label>이메일<input id="loginId" type="email" placeholder="예: admin@kmtechs.co.kr" autocomplete="username"></label>
+      <label>비밀번호<input id="loginPw" type="password" placeholder="비밀번호" autocomplete="current-password" onkeydown="if(event.key==='Enter') authLogin()"></label>
+      <button class="btn" onclick="authLogin()">로그인</button>
+    </div>
+    <div class="auth-note">계정은 Firebase Console → Authentication → Users에서 관리합니다.</div>
+  </div>
+</div>
+
+
+<div class="kmi-return-bar">
+  <div class="kmi-return-title">KMI TECH 직무인증 관리</div>
+  <div class="kmi-return-actions">
+    <a class="primary" href="index.html">🏠 메인으로 돌아가기</a>
+    <a href="index.html#tools">공구관리</a>
+    <a href="index.html#documents">문서관리</a>
+    <a href="index.html#safety">안전관리</a><a href="#" onclick="window.print();return false;">🖨 현재화면 인쇄</a>
+    <a href="#" onclick="authLogout();return false;">로그아웃</a>
+  </div>
+</div>
+
+<div class="header"><h1>데일리 작업 인원별 참여횟수 누적 저장</h1></div>
+<div class="app-layout">
+  <nav class="side-menu">
+    <button class="active" onclick="showPage('dashboard', this)">작업이력/누적 데이터</button>
+    <button onclick="showPage('monthly', this)">월별 투입 현황</button>
+    <button onclick="showPage('skill', this)">공정별 업무 숙련도</button>
+    <button onclick="showPage('talentLevel', this)">직원 레벨관리</button>
+    <button onclick="showPage('talentEval', this)">평가기록</button>
+    <button onclick="showPage('talentDefect', this)">불량이력</button>
+  </nav>
+  <main class="main-area">
+    <section id="page-dashboard" class="page">
+      <div class="wrap">
+  <div class="toolbar">
+    <span class="top-title">작업이력 / 누적 데이터</span>
+    <span class="small" id="saveStatus">자동 저장 대기중</span>
+    <div class="right-actions">
+      <button class="btn" onclick="downloadExcel()">백데이터다운</button>
+      <button class="btn green" onclick="document.getElementById('backDataFile').click()">백데이터 업로드</button>
+      <input type="file" id="backDataFile" accept=".xlsx,.xls" style="display:none" onchange="uploadBackData(this)">
+      <button class="btn red" onclick="resetAllData()">전체초기화</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title-row">
+      <h2>누적 데이터</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button class="btn green" onclick="manualPersist()">데이터 저장</button><button class="btn red" onclick="deleteSelectedRows()">선택 삭제</button><button class="btn" onclick="showPage('skill')">공정별 업무 숙련도</button></div>
+    </div>
+    <div class="summary">
+      <div class="pill">총 건수: <span id="rowCount">0</span></div>
+      <div class="pill">검색 결과: <span id="filteredRowCount">0</span></div>
+      <div class="pill">성명 검색: <input type="text" id="personSearchInput" placeholder="성명 입력" oninput="render()" style="padding:5px 8px;border:1px solid #bbb;border-radius:4px;min-width:160px;"> <button class="btn gray" onclick="clearPersonSearch()" style="padding:5px 9px;">초기화</button></div>
+      <div class="pill">마지막 입력ID: <span id="lastInputId">-</span></div>
+      <div class="pill">저장상태: <span id="persistStatus">불러오기 전</span></div>
+    </div>
+    <div class="table-box">
+      <table id="dataTable">
+        <thead id="tableHead"></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>수기입력 / 변환 확인</h2>
+    <div class="input-grid">
+      <div>
+        <textarea id="manualText" class="input-area" placeholder="작업일보 내용을 그대로 붙여넣으세요."></textarea>
+        <div class="input-actions">
+          <button class="btn green" onclick="convertManualText()">변환하기</button>
+          <button class="btn" onclick="uploadConvertedData()">데이터 업로드</button>
+          <button class="btn gray" onclick="undoLastUpload()">데이터 입력취소</button>
+          <button class="btn gray" onclick="clearInput()">입력칸 비우기</button>
+        </div>
+        <div class="small">※ 잘된 예시/오타 예시 모두 인식합니다. 공정 내용이 다음 줄로 넘어가도 리더/보조를 찾아 카운트합니다.</div>
+      </div>
+      <div>
+        <textarea id="convertedText" class="converted-area" readonly placeholder="변환하기를 누르면 업로드될 사람별 카운트가 여기에 표시됩니다."></textarea>
+        <div class="small" id="convertStatus">변환 대기중</div>
+      </div>
+    </div>
+  </div>
+</div>
+    </section>
+
+    <section id="page-monthly" class="page hidden panel-page">
+      <h2>월별 투입 현황</h2>
+      <div class="skill-summary">
+        <div class="pill">기준월: <input type="month" id="monthlyMonthFilter" style="padding:5px 8px;border:1px solid #bbb;border-radius:4px;"></div>
+        <div class="pill">공정명:
+          <div class="excel-filter">
+            <button type="button" class="filter-toggle" onclick="toggleMonthlyProcessFilter()">전체 공정 ▼</button>
+            <div id="monthlyProcessFilterPanel" class="filter-panel">
+              <input type="text" id="monthlyProcessSearch" class="filter-search" placeholder="공정명 검색" oninput="renderMonthlyProcessFilterList()">
+              <div class="filter-actions">
+                <button type="button" onclick="selectAllMonthlyProcesses()">전체선택</button>
+                <button type="button" onclick="clearMonthlyProcesses()">선택해제</button>
+                <button type="button" onclick="applyMonthlyProcessFilter()">적용</button>
+              </div>
+              <div id="monthlyProcessFilterList" class="filter-list"></div>
+            </div>
+          </div>
+        </div>
+        <button class="btn green" onclick="applyMonthlySearch()">조회</button>
+        <button class="btn" onclick="downloadMonthlyExcel()">월별 현황 Excel 다운로드</button>
+      </div>
+      <div class="small">※ 기준월과 공정명을 설정한 뒤 조회 버튼을 누르면 아래 표와 월별 공정별 투입횟수 그래프가 갱신됩니다.</div><br>
+      <div class="table-box" style="max-height:460px;"><table class="skill-table" style="min-width:1200px;"><thead id="monthlyTableHead"></thead><tbody id="monthlyTableBody"></tbody></table></div>
+      <div class="chart-box"><canvas id="monthlyChart"></canvas></div>
+    </section>
+
+    <section id="page-skill" class="page hidden panel-page">
+      <h2>공정별 업무 숙련도</h2>
+      <div class="skill-summary">
+        <div class="pill">직원 수: <span id="skillEmployeeCount">0</span></div>
+        <div class="pill">직원명: <select id="skillEmployeeFilter" onchange="renderSkillTable()" style="padding:5px 8px;border:1px solid #bbb;border-radius:4px;"><option value="__ALL__">전체 직원</option></select></div>
+        <div class="pill">공정명: <select id="skillProcessFilter" onchange="renderSkillTable()" style="padding:5px 8px;border:1px solid #bbb;border-radius:4px;"><option value="__ALL__">전체 공정</option></select></div>
+        <button class="btn" onclick="downloadSkillExcel()">숙련도 Excel 다운로드</button>
+      </div>
+      <div class="small">※ 선택한 공정 기준으로 직원명 중복 없이 총투입횟수, 작업리더횟수, 각 세부공정 리더/참여횟수를 직원별 합산합니다.</div><br>
+      <div class="table-box" style="max-height:650px;"><table class="skill-table"><thead id="skillTableHead"></thead><tbody id="skillTableBody"></tbody></table></div>
+    </section>
+
+    
+
+
+<section id="page-talentLevel" class="page hidden panel-page">
+  <h2>직원 레벨관리</h2>
+  <div class="badge-note">기본 화면에는 승인 필요 직원만 표시됩니다. 전직원 확인 버튼을 누르면 전체 인원을 조회할 수 있습니다. 행 추가 후 이름 저장으로 직원을 수기 추가할 수 있고, 선택 후 인원 삭제로 레벨관리 목록에서 제외할 수 있습니다. 투입횟수가 조회된 공정명/업무명은 자동조회되며, 최초 현재레벨은 1level로 표시됩니다. 승급 기준에 도달해도 현재레벨은 승인완료 전까지 기존 레벨을 유지하고, 변경 레벨만 후보 레벨로 표시됩니다. 코멘트는 코멘트 저장으로 별도 저장하고, 실제 레벨 변경은 담당자가 변경 레벨을 확인한 뒤 승인완료로만 확정합니다. 승인완료를 잘못 누른 경우 같은 행의 승인취소/복원 버튼으로 직전 상태로 되돌릴 수 있습니다. 목록 새로고침 버튼을 누르면 승인완료 상태는 대기로 변경되며, 변경된 현재레벨은 유지됩니다.</div>
+
+  <div class="skill-summary">
+    <div class="pill">현재 표시: <span id="levelViewModeLabel">승인 필요 직원</span> / 표시 인원: <span id="levelTargetCount">0</span>명 / 전체 승인 필요: <span id="levelApproveCount">0</span>명</div>
+    <button class="btn green" onclick="showApprovalNeededLevelTargets()">승인 필요 직원 조회</button>
+    <button class="btn" onclick="showAllLevelTargets()">전직원 확인</button>
+    <button class="btn" onclick="refreshLevelTargetListWithApprovalReset()">목록 새로고침</button>
+    <button class="btn red" onclick="resetLevelManagementToInitial()">전체 최초 초기화</button>
+  </div>
+
+  <div class="level-manual-panel">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;width:100%;">
+      <b>직원 수기관리</b>
+      <button class="btn green" onclick="addManualLevelEmployeeRow()">행 추가</button>
+      <button class="btn red" onclick="deleteSelectedLevelEmployees()">인원 삭제</button>
+      <span class="small">※ 행 추가 후 생성된 입력 행에서 직원명을 입력하고 이름 저장을 누르세요. 직원삭제는 레벨관리 목록에서 제외하며, 누적 작업이력 원본 데이터는 삭제하지 않습니다.</span>
+    </div>
+    <div class="table-box" style="max-height:180px;width:100%;margin-top:8px;">
+      <table class="editable-table" style="min-width:520px;">
+        <thead><tr><th style="width:60px;">No</th><th>추가 직원명</th><th style="width:190px;">처리</th></tr></thead>
+        <tbody id="levelManualEmployeeTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="level-rollback-box">
+    <b>선택 직원 레벨 복원</b>
+    <span class="small">각 성명별 선택 칸을 체크한 뒤, 해당 직원의 마지막 승인완료 직전 레벨로 복원합니다.</span>
+    <button class="btn red" onclick="restoreSelectedLevelApprovals()">선택 직원 복원</button>
+    <button class="btn gray" onclick="openLevelRestoreLogModal()">복원관련 기록 로그 보기</button>
+    <span id="levelRollbackMsg" class="small"></span>
+  </div>
+
+  <div id="levelRestoreLogModal" class="restore-log-modal">
+    <div class="restore-log-content">
+      <div class="restore-log-head">
+        <h2>복원관련 기록 로그</h2>
+        <span class="restore-log-close" onclick="closeLevelRestoreLogModal()">&times;</span>
+      </div>
+      <div class="restore-log-filter">
+        <b>성명</b>
+        <select id="levelRestoreLogNameFilter" onchange="renderLevelRestoreLogTable()"><option value="__ALL__">전체</option></select>
+        <b>구분</b>
+        <select id="levelRestoreLogActionFilter" onchange="renderLevelRestoreLogTable()"><option value="__ALL__">전체</option><option value="승인완료">승인완료</option><option value="승인취소복원">승인취소복원</option><option value="선택복원">선택복원</option><option value="날짜기준복원">날짜기준복원</option></select>
+        <button class="btn" onclick="renderLevelRestoreLogTable()">조회</button>
+      </div>
+      <div class="table-box" style="max-height:620px;">
+        <table class="restore-log-table">
+          <thead><tr><th>No</th><th>일시</th><th>성명</th><th>구분</th><th>공정명</th><th>업무명</th><th>복원 전</th><th>복원 후</th><th>부여방식</th><th>코멘트</th></tr></thead>
+          <tbody id="levelRestoreLogTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-box" style="max-height:520px;">
+    <table class="editable-table" style="min-width:1550px;">
+      <thead>
+        <tr>
+          <th class="level-no-col">선택</th>
+          <th class="level-no-col">No</th>
+          <th class="level-name-col">성명</th>
+          <th class="level-small-col">총 투입횟수</th>
+          <th>공정명</th>
+          <th>업무명</th>
+          <th>현재레벨</th>
+          <th>변경 레벨</th>
+          <th>인증일</th>
+          <th>만료일</th>
+          <th>부여방식</th>
+          <th>코멘트</th>
+          <th>코멘트 저장 / 승인완료</th>
+        </tr>
+      </thead>
+      <tbody id="levelTargetTableBody"></tbody>
+    </table>
+  </div>
+
+  <div id="levelTargetDetailBox" class="badge-note" style="margin-top:14px;">성명을 클릭하면 직원별 공정명별 투입횟수가 표시됩니다.</div>
+</section>
+
+
+
+
+    <section id="page-talentEval" class="page hidden panel-page">
+      <h2>평가기록</h2>
+      <div class="badge-note">평가기록 입력/조회 영역입니다. 이후 평가일, 성명, 공정명, 업무명, 평가결과 등의 세부 항목으로 확장할 수 있습니다.</div>
+    </section>
+
+    <section id="page-talentDefect" class="page hidden panel-page">
+      <h2>불량이력</h2>
+      <div class="badge-note">작업자별 불량 발생 이력과 개선 내용을 관리하는 영역입니다.</div>
+    </section>
+  </main>
+</div>
+
+<script>
+const STORAGE_KEY='dailyPersonCountData_v4_robust';
+const processItems=[
+  {key:'positioning', label:'설비반입 포지셔닝', aliases:['설비반입 포지셔닝','설비반입 포지셔닝(트롤리 설치)','포지셔닝','트롤리 설치']},
+  {key:'partCheck', label:'파트체크', aliases:['파트체크','파트 체크']},
+  {key:'efem', label:'EFEM 설치', aliases:['EFEM 설치','EFEM설치','EFEM']},
+  {key:'mf', label:'M/F 설치', aliases:['M/F 설치','M/F설치','MF 설치','MF설치']},
+  {key:'docking', label:'Docking', aliases:['Docking','도킹']},
+  {key:'integration', label:'Integration', aliases:['Integration','인터그레이션']},
+  {key:'partsInstall', label:'Parts Install', aliases:['Parts Install','Parts Install :','PartsInstall']},
+  {key:'cesPartsInstall', label:'CES Parts Install', aliases:['CES Parts Install','CES PartsInstall','CES']},
+  {key:'cableTray', label:'Cable Tray', aliases:['Cable Tray','CableTray']},
+  {key:'cableHookup', label:'Cable Hook-up', aliases:['Cable Hook-up','Cable Hookup','Cable Hook up','케이블 훅업']},
+  {key:'pumpHookup', label:'Pump Hook-up', aliases:['Pump Hook-up','Pump Hookup','Pump Hook up']},
+  {key:'connection', label:'Connection', aliases:['Connection','커넥션']},
+  {key:'sealing', label:'Sealing', aliases:['Sealing','실링']}
+];
+const monthlySummaryProcesses=[
+  {key:'pdc', label:'PDC', aliases:['PDC','피디씨']},
+  {key:'epi', label:'EPI', aliases:['EPI','에피']},
+  {key:'etch', label:'ETCH', aliases:['ETCH','Etch','에치','식각']},
+  {key:'fep', label:'FEP', aliases:['FEP','EFP']},
+  {key:'mdp', label:'MDP', aliases:['MDP']},
+  {key:'ddp', label:'DDP', aliases:['DDP']},
+  {key:'ppc', label:'PPC', aliases:['PPC']},
+  {key:'cmp', label:'CMP', aliases:['CMP']}
+];
+let monthlyChartInstance=null;
+let monthlySelectedProcesses=['__ALL__'];
+let monthlyAppliedMonth='';
+let monthlyAppliedProcesses=['__ALL__'];
+const baseColumns=[
+  {key:'workDate', label:'작업일'},
+  {key:'equipmentName', label:'설비명'},
+  {key:'serialNo', label:'S/N'},
+  {key:'personName', label:'성명'},
+  {key:'processName', label:'공정명'},
+  {key:'mainLeaderCount', label:'작업리더횟수'}
+];
+let rows=[];
+let uploadHistory=[];
+let pendingResult=null;
+
+const TALENT_LEVEL_STORAGE_KEY='talentLevelRows_v2_dynamic';
+const TALENT_LEVEL_HISTORY_STORAGE_KEY='talentLevelHistory_v1';
+const TALENT_PROCESS_OPTIONS=['','PDC','SRP','EPI','FEP','DDP','공정6','공정7','공정8'];
+const TALENT_WORK_OPTIONS=['','설비반입 포지셔닝','파트체크','EFEM 설치','M/F 설치','Docking','Integration','Parts Install','CES Parts Install','Cable Tray','Cable Hook-up','Pump Hook-up','Connection','Sealing','8C/6C','Leak Check','Final Check'];
+
+const LEVEL_TARGET_META_STORAGE_KEY='levelTargetMeta_v4';
+const LEVEL_GRANT_OPTIONS=['자동','대표님권한','경력직'];
+const LEVEL_OPTIONS=['','1level','2level','3level','4level'];
+const LEVEL_MANUAL_EMPLOYEES_STORAGE_KEY='levelManualEmployees_v1';
+const LEVEL_DELETED_EMPLOYEES_STORAGE_KEY='levelDeletedEmployees_v1';
+let levelTargetViewMode='approval';
+let levelSelectedPerson='';
+
+
+function loadManualLevelEmployees(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem(LEVEL_MANUAL_EMPLOYEES_STORAGE_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed.map(normalizeName).filter(Boolean) : [];
+  }catch(e){return [];}
+}
+function saveManualLevelEmployees(list){
+  const unique=[...new Set((Array.isArray(list)?list:[]).map(normalizeName).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko'));
+  localStorage.setItem(LEVEL_MANUAL_EMPLOYEES_STORAGE_KEY, JSON.stringify(unique));
+}
+function loadDeletedLevelEmployees(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem(LEVEL_DELETED_EMPLOYEES_STORAGE_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed.map(normalizeName).filter(Boolean) : [];
+  }catch(e){return [];}
+}
+function saveDeletedLevelEmployees(list){
+  const unique=[...new Set((Array.isArray(list)?list:[]).map(normalizeName).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko'));
+  localStorage.setItem(LEVEL_DELETED_EMPLOYEES_STORAGE_KEY, JSON.stringify(unique));
+}
+let levelManualEmployeeDraftRows=[];
+function renderManualLevelEmployeeRows(){
+  const tbody=document.getElementById('levelManualEmployeeTableBody');
+  if(!tbody) return;
+  if(levelManualEmployeeDraftRows.length===0){
+    tbody.innerHTML='<tr><td colspan="3">행 추가 버튼을 눌러 직원명 입력 행을 생성하세요.</td></tr>';
+    return;
+  }
+  tbody.innerHTML=levelManualEmployeeDraftRows.map((row,i)=>{
+    const id=String(row.id||i);
+    return '<tr>'+
+      '<td>'+(i+1)+'</td>'+
+      '<td><input class="level-manual-name-input" id="levelManualName_'+escapeHtml(id)+'" value="'+escapeHtml(row.name||'')+'" placeholder="직원명 입력" oninput="updateManualLevelEmployeeDraft(\''+escapeJs(id)+'\', this.value)" onkeydown="if(event.key===\'Enter\') saveManualLevelEmployeeFromRow(\''+escapeJs(id)+'\')"></td>'+
+      '<td><button class="btn green" onclick="saveManualLevelEmployeeFromRow(\''+escapeJs(id)+'\')">이름 저장</button> <button class="btn gray" onclick="removeManualLevelEmployeeDraftRow(\''+escapeJs(id)+'\')">행 삭제</button></td>'+
+    '</tr>';
+  }).join('');
+}
+function addManualLevelEmployeeRow(){
+  const id='manual_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+  levelManualEmployeeDraftRows.push({id,name:''});
+  renderManualLevelEmployeeRows();
+  setTimeout(()=>{const input=document.getElementById('levelManualName_'+id); if(input) input.focus();},0);
+}
+function updateManualLevelEmployeeDraft(id,value){
+  const row=levelManualEmployeeDraftRows.find(r=>String(r.id)===String(id));
+  if(row) row.name=value;
+}
+function removeManualLevelEmployeeDraftRow(id){
+  levelManualEmployeeDraftRows=levelManualEmployeeDraftRows.filter(r=>String(r.id)!==String(id));
+  renderManualLevelEmployeeRows();
+}
+function createManualLevelEmployee(name){
+  name=normalizeName(name);
+  if(!name){alert('추가할 직원명을 입력하세요.');return false;}
+  const manual=loadManualLevelEmployees();
+  const alreadyExists=manual.includes(name) || buildLevelTargetRows().some(t=>String(t.personName||'').trim()===name);
+  if(!manual.includes(name)) manual.push(name);
+  saveManualLevelEmployees(manual);
+  const deleted=loadDeletedLevelEmployees().filter(n=>n!==name);
+  saveDeletedLevelEmployees(deleted);
+  const meta=loadLevelTargetMeta();
+  if(!meta[name]){
+    meta[name]={
+      processName:'수기추가',
+      workName:'-',
+      autoCount:0,
+      currentLevel:'1level',
+      changeLevel:'1level',
+      certDate:'',
+      expireDate:'',
+      grantType:'자동',
+      comment:'수기추가',
+      approved:false,
+      approvedAt:''
+    };
+    saveLevelTargetMeta(meta);
+  }
+  levelTargetViewMode='all';
+  levelSelectedPerson=name;
+  refreshLevelTargetList('__ALL__');
+  renderLevelTargetDetail();
+  alert(name+(alreadyExists?' 직원은 이미 목록에 있어 해당 행으로 이동했습니다.':' 직원 행이 추가되었습니다.'));
+  return true;
+}
+function saveManualLevelEmployeeFromRow(id){
+  const input=document.getElementById('levelManualName_'+id);
+  const row=levelManualEmployeeDraftRows.find(r=>String(r.id)===String(id));
+  const name=normalizeName(input ? input.value : (row ? row.name : ''));
+  if(createManualLevelEmployee(name)){
+    levelManualEmployeeDraftRows=levelManualEmployeeDraftRows.filter(r=>String(r.id)!==String(id));
+    renderManualLevelEmployeeRows();
+  }
+}
+function addManualLevelEmployee(){
+  addManualLevelEmployeeRow();
+}
+function deleteSelectedLevelEmployees(){
+  const selected=getSelectedLevelRestorePersons();
+  if(selected.length===0){alert('삭제할 직원을 선택하세요.');return;}
+  if(!confirm('선택한 '+selected.length+'명을 직원 레벨관리 목록에서 삭제하시겠습니까? 누적 작업이력 원본 데이터는 삭제되지 않습니다.')) return;
+  const selectedSet=new Set(selected.map(normalizeName));
+  const manual=loadManualLevelEmployees().filter(n=>!selectedSet.has(n));
+  saveManualLevelEmployees(manual);
+  const deleted=[...loadDeletedLevelEmployees(), ...selected].map(normalizeName).filter(Boolean);
+  saveDeletedLevelEmployees(deleted);
+  const meta=loadLevelTargetMeta();
+  selected.forEach(name=>{ delete meta[normalizeName(name)]; });
+  saveLevelTargetMeta(meta);
+  if(selectedSet.has(levelSelectedPerson)) levelSelectedPerson='';
+  refreshLevelTargetList();
+  renderLevelTargetDetail();
+  const msg=document.getElementById('levelRollbackMsg');
+  if(msg) msg.innerText='직원삭제 완료: '+selected.length+'명';
+}
+
+function loadLevelTargetMeta(){
+  const saved=localStorage.getItem(LEVEL_TARGET_META_STORAGE_KEY) || localStorage.getItem('levelTargetMeta_v3') || localStorage.getItem('levelTargetMeta_v2') || localStorage.getItem('levelTargetMeta_v1');
+  if(saved){
+    try{
+      const parsed=JSON.parse(saved);
+      return parsed && typeof parsed==='object' ? parsed : {};
+    }catch(e){}
+  }
+  return {};
+}
+function saveLevelTargetMeta(meta){
+  localStorage.setItem(LEVEL_TARGET_META_STORAGE_KEY, JSON.stringify(meta || {}));
+}
+function getPromotionCandidateLevel(count){
+  const n=Number(count)||0;
+  if(n >= 20) return '4level';
+  if(n >= 10) return '3level';
+  if(n >= 5) return '2level';
+  return '';
+}
+function getDefaultCurrentLevel(count){
+  // 최초 상태의 현재레벨은 투입횟수와 관계없이 1level로 고정합니다.
+  // 투입횟수 기준 도달 여부는 promotionCandidate / 승인필요 배지로만 표시합니다.
+  return '1level';
+}
+function getPersonProcessWorkCounts(personName){
+  const person=String(personName||'').trim();
+  const map={};
+  rows.forEach(r=>{
+    if(String(r.personName||'').trim()!==person) return;
+    const process=String(r.processName||'').trim() || '-';
+    processItems.forEach(item=>{
+      const count=(Number(r[item.key+'Leader'])||0)+(Number(r[item.key+'Participate'])||0);
+      if(count>0){
+        const key=process+'|'+item.label;
+        if(!map[key]) map[key]={processName:process, workName:item.label, count:0};
+        map[key].count += count;
+      }
+    });
+  });
+  const list=Object.values(map).sort((a,b)=>b.count-a.count || a.processName.localeCompare(b.processName,'ko') || a.workName.localeCompare(b.workName,'ko'));
+  return list;
+}
+function getAutoLevelSource(personName){
+  const list=getPersonProcessWorkCounts(personName);
+  if(list.length>0) return list[0];
+  const target=buildLevelTargetRows().find(t=>t.personName===personName);
+  if(target){
+    const processes=Object.keys(target.processCounts||{}).sort((a,b)=>(target.processCounts[b]||0)-(target.processCounts[a]||0));
+    if(processes.length>0) return {processName:processes[0], workName:'-', count:target.processCounts[processes[0]]||0};
+    return {processName:'-', workName:'-', count:target.totalInputCount||0};
+  }
+  return {processName:'-', workName:'-', count:0};
+}
+
+function getLevelTargetMeta(personName){
+  const name=String(personName||'').trim();
+  const meta=loadLevelTargetMeta();
+  const old=meta[name] || {};
+  const auto=getAutoLevelSource(name);
+  // 현재레벨은 승인완료로 확정된 값만 사용합니다.
+  // 투입횟수가 5회/10회/20회 기준에 도달해도 승인완료 전까지는 기존 현재레벨을 유지합니다.
+  const savedCurrent=old.currentLevel || '';
+  const currentLevel=savedCurrent || getDefaultCurrentLevel(auto.count);
+  const candidate=getPromotionCandidateLevel(auto.count);
+  const levelRank={'1level':1,'2level':2,'3level':3,'4level':4};
+  const canShowNext=candidate && ((levelRank[candidate]||0) > (levelRank[currentLevel]||0));
+  const nextChangeLevel=old.changeLevel || (canShowNext ? candidate : currentLevel);
+  return {
+    processName: auto.processName || old.processName || '',
+    workName: auto.workName || old.workName || '',
+    autoCount: Number(auto.count)||0,
+    currentLevel: currentLevel,
+    promotionCandidate: canShowNext ? candidate : '',
+    changeLevel: nextChangeLevel,
+    certDate: old.certDate || '',
+    expireDate: old.expireDate || '',
+    grantType: old.grantType || '자동',
+    comment: old.comment || old.note || '',
+    approved: old.approved || false,
+    approvedAt: old.approvedAt || '',
+    rollbackDate: old.rollbackDate || ''
+  };
+}
+
+
+
+function saveLevelTargetRow(personName){
+  const name=String(personName||'').trim();
+  if(!name){alert('저장할 직원명이 없습니다.');return;}
+  const safe=cssSafeId(name);
+  const currentMeta=getLevelTargetMeta(name);
+  const meta=loadLevelTargetMeta();
+  const existing=meta[name] || {};
+
+  // 코멘트 저장은 레벨/인증일/만료일/부여방식을 변경하지 않습니다.
+  // 실제 현재레벨 변경은 승인완료 버튼에서만 처리합니다.
+  meta[name]=Object.assign({}, existing, {
+    processName:currentMeta.processName,
+    workName:currentMeta.workName,
+    autoCount:currentMeta.autoCount,
+    currentLevel:currentMeta.currentLevel,
+    changeLevel:existing.changeLevel || currentMeta.changeLevel || currentMeta.currentLevel,
+    certDate:existing.certDate || currentMeta.certDate || '',
+    expireDate:existing.expireDate || currentMeta.expireDate || '',
+    grantType:existing.grantType || currentMeta.grantType || '자동',
+    comment:document.getElementById('levelComment_'+safe)?.value || '',
+    approved:currentMeta.approved || false,
+    approvedAt:currentMeta.approvedAt || ''
+  });
+  saveLevelTargetMeta(meta);
+  refreshLevelTargetList();
+  levelSelectedPerson=name;
+  renderLevelTargetDetail();
+  const msg=document.getElementById('levelSaveMsg_'+cssSafeId(name));
+  if(msg){
+    msg.innerText='코멘트 저장됨';
+    setTimeout(()=>{msg.innerText='';},1500);
+  }
+}
+
+
+
+
+
+function approveLevelTargetRow(personName){
+  const name=String(personName||'').trim();
+  if(!name){alert('승인할 직원명이 없습니다.');return;}
+  const safe=cssSafeId(name);
+  const currentMeta=getLevelTargetMeta(name);
+  const approvedLevel=document.getElementById('levelChange_'+safe)?.value || currentMeta.currentLevel;
+  if(isLevelApprovalNeeded(name) && approvedLevel===currentMeta.currentLevel){
+    if(!confirm('승인 필요 대상이지만 변경 레벨이 현재레벨과 같습니다. 레벨 변경 없이 승인상태만 저장하시겠습니까?')) return;
+  }
+  const meta=loadLevelTargetMeta();
+  const beforeMeta=Object.assign({}, meta[name] || {}, currentMeta);
+  meta[name]={
+    processName:currentMeta.processName,
+    workName:currentMeta.workName,
+    autoCount:currentMeta.autoCount,
+    currentLevel:approvedLevel,
+    changeLevel:'',
+    certDate:document.getElementById('levelCert_'+safe)?.value || '',
+    expireDate:document.getElementById('levelExpire_'+safe)?.value || '',
+    grantType:document.getElementById('levelGrant_'+safe)?.value || '자동',
+    comment:document.getElementById('levelComment_'+safe)?.value || '',
+    approved:true,
+    approvedAt:new Date().toLocaleString('ko-KR'),
+    lastApprovalBefore:beforeMeta
+  };
+  saveLevelTargetMeta(meta);
+
+  const history=JSON.parse(localStorage.getItem('levelChangeHistory_v1') || '[]');
+  history.push({
+    savedAt:new Date().toLocaleString('ko-KR'),
+    personName:name,
+    processName:currentMeta.processName,
+    workName:currentMeta.workName,
+    autoCount:currentMeta.autoCount,
+    beforeLevel:currentMeta.currentLevel,
+    afterLevel:approvedLevel,
+    beforeApproved:currentMeta.approved || false,
+    beforeApprovedAt:currentMeta.approvedAt || '',
+    grantType:meta[name].grantType,
+    comment:meta[name].comment,
+    action:'승인완료'
+  });
+  localStorage.setItem('levelChangeHistory_v1', JSON.stringify(history));
+
+  refreshLevelTargetList();
+  levelSelectedPerson=name;
+  renderLevelTargetDetail();
+  alert(name+' 현재레벨이 '+approvedLevel+'로 확정되었습니다.');
+}
+
+function restoreLastLevelApproval(personName){
+  const name=String(personName||'').trim();
+  if(!name){alert('복원할 직원명이 없습니다.');return;}
+  const meta=loadLevelTargetMeta();
+  const current=getLevelTargetMeta(name);
+  if(!current.approved){alert('현재 승인완료 상태가 아니어서 복원할 승인 내역이 없습니다.');return;}
+
+  const history=JSON.parse(localStorage.getItem('levelChangeHistory_v1') || '[]');
+  const lastApproval=[...history].reverse().find(h=>String(h.personName||'').trim()===name && h.action==='승인완료');
+  const before=meta[name] && meta[name].lastApprovalBefore ? meta[name].lastApprovalBefore : null;
+  const restoreLevel=(before && before.currentLevel) || (lastApproval && lastApproval.beforeLevel) || current.currentLevel;
+
+  if(!confirm(name+' 직원의 마지막 승인완료를 취소하고 현재레벨을 '+restoreLevel+'로 복원하시겠습니까?')) return;
+
+  meta[name]={
+    processName:current.processName,
+    workName:current.workName,
+    autoCount:current.autoCount,
+    currentLevel:restoreLevel,
+    changeLevel:restoreLevel,
+    certDate:(before && before.certDate) || current.certDate || '',
+    expireDate:(before && before.expireDate) || current.expireDate || '',
+    grantType:(before && before.grantType) || current.grantType || '자동',
+    comment:(before && before.comment) || current.comment || '',
+    approved:(before && before.approved) || false,
+    approvedAt:(before && before.approvedAt) || '',
+    rollbackDate:current.rollbackDate || ''
+  };
+  saveLevelTargetMeta(meta);
+
+  history.push({
+    savedAt:new Date().toLocaleString('ko-KR'),
+    personName:name,
+    processName:current.processName,
+    workName:current.workName,
+    autoCount:current.autoCount,
+    beforeLevel:current.currentLevel,
+    afterLevel:restoreLevel,
+    grantType:meta[name].grantType,
+    comment:meta[name].comment,
+    action:'승인취소복원'
+  });
+  localStorage.setItem('levelChangeHistory_v1', JSON.stringify(history));
+
+  refreshLevelTargetList();
+  levelSelectedPerson=name;
+  renderLevelTargetDetail();
+  alert(name+' 직원의 승인완료가 취소/복원되었습니다.');
+}
+
+
+
+
+
+function loadLevelChangeHistory(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem('levelChangeHistory_v1') || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  }catch(e){return [];}
+}
+function saveLevelChangeHistory(history){
+  localStorage.setItem('levelChangeHistory_v1', JSON.stringify(Array.isArray(history)?history:[]));
+}
+function getSelectedLevelRestorePersons(){
+  return Array.from(document.querySelectorAll('.level-restore-check:checked')).map(ch=>String(ch.value||'').trim()).filter(Boolean);
+}
+function restoreSelectedLevelApprovals(){
+  const selected=getSelectedLevelRestorePersons();
+  const msg=document.getElementById('levelRollbackMsg');
+  if(selected.length===0){if(msg) msg.innerText='복원할 직원을 선택하세요.'; return;}
+  if(!confirm('선택한 '+selected.length+'명의 마지막 승인완료 직전 레벨로 복원하시겠습니까?')) return;
+  const meta=loadLevelTargetMeta();
+  const history=loadLevelChangeHistory();
+  const restored=[];
+  const skipped=[];
+  selected.forEach(name=>{
+    const current=getLevelTargetMeta(name);
+    const before=meta[name] && meta[name].lastApprovalBefore ? meta[name].lastApprovalBefore : null;
+    const lastApproval=[...history].reverse().find(h=>String(h.personName||'').trim()===name && h.action==='승인완료');
+    const restoreLevel=(before && before.currentLevel) || (lastApproval && lastApproval.beforeLevel) || '';
+    if(!restoreLevel){skipped.push(name); return;}
+    meta[name]={
+      processName:current.processName,
+      workName:current.workName,
+      autoCount:current.autoCount,
+      currentLevel:restoreLevel,
+      changeLevel:restoreLevel,
+      certDate:(before && before.certDate) || current.certDate || '',
+      expireDate:(before && before.expireDate) || current.expireDate || '',
+      grantType:(before && before.grantType) || current.grantType || '자동',
+      comment:(before && before.comment) || current.comment || '',
+      approved:(before && before.approved) || false,
+      approvedAt:(before && before.approvedAt) || '',
+      rollbackDate:current.rollbackDate || ''
+    };
+    history.push({
+      savedAt:new Date().toLocaleString('ko-KR'),
+      personName:name,
+      processName:current.processName,
+      workName:current.workName,
+      autoCount:current.autoCount,
+      beforeLevel:current.currentLevel,
+      afterLevel:restoreLevel,
+      grantType:meta[name].grantType,
+      comment:meta[name].comment,
+      action:'선택복원'
+    });
+    restored.push(name);
+  });
+  saveLevelTargetMeta(meta);
+  saveLevelChangeHistory(history);
+  refreshLevelTargetList();
+  renderLevelRestoreLogTable();
+  if(msg) msg.innerText='복원 완료: '+restored.length+'명'+(skipped.length?' / 복원 이력 없음: '+skipped.join(', '):'');
+  if(restored.length) alert('선택 직원 복원이 완료되었습니다. 복원 인원: '+restored.length+'명');
+}
+function openLevelRestoreLogModal(){
+  refreshLevelRestoreLogFilters();
+  renderLevelRestoreLogTable();
+  const modal=document.getElementById('levelRestoreLogModal');
+  if(modal) modal.style.display='block';
+}
+function closeLevelRestoreLogModal(){
+  const modal=document.getElementById('levelRestoreLogModal');
+  if(modal) modal.style.display='none';
+}
+function openLevelRestoreLogModalForPerson(personName){
+  openLevelRestoreLogModal();
+  const select=document.getElementById('levelRestoreLogNameFilter');
+  if(select){ select.value=personName; renderLevelRestoreLogTable(); }
+}
+function refreshLevelRestoreLogFilters(){
+  const select=document.getElementById('levelRestoreLogNameFilter');
+  if(!select) return;
+  const current=select.value || '__ALL__';
+  const names=[...new Set(loadLevelChangeHistory().map(h=>String(h.personName||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ko'));
+  select.innerHTML='<option value="__ALL__">전체</option>'+names.map(n=>'<option value="'+escapeHtml(n)+'">'+escapeHtml(n)+'</option>').join('');
+  if(current==='__ALL__' || names.includes(current)) select.value=current;
+}
+function renderLevelRestoreLogTable(){
+  const tbody=document.getElementById('levelRestoreLogTableBody');
+  if(!tbody) return;
+  const nameFilter=document.getElementById('levelRestoreLogNameFilter')?.value || '__ALL__';
+  const actionFilter=document.getElementById('levelRestoreLogActionFilter')?.value || '__ALL__';
+  let history=loadLevelChangeHistory().filter(h=>['승인완료','승인취소복원','선택복원','날짜기준복원'].includes(String(h.action||'')));
+  if(nameFilter!=='__ALL__') history=history.filter(h=>String(h.personName||'').trim()===nameFilter);
+  if(actionFilter!=='__ALL__') history=history.filter(h=>String(h.action||'')===actionFilter);
+  history=history.slice().reverse();
+  if(history.length===0){tbody.innerHTML='<tr><td colspan="10">표시할 복원관련 기록이 없습니다.</td></tr>';return;}
+  tbody.innerHTML=history.map((h,i)=>'<tr>'+ 
+    '<td>'+(i+1)+'</td>'+ 
+    '<td>'+escapeHtml(h.savedAt||'')+'</td>'+ 
+    '<td>'+escapeHtml(h.personName||'')+'</td>'+ 
+    '<td>'+escapeHtml(h.action||'')+'</td>'+ 
+    '<td>'+escapeHtml(h.processName||'')+'</td>'+ 
+    '<td>'+escapeHtml(h.workName||'')+'</td>'+ 
+    '<td>'+escapeHtml(h.beforeLevel||'')+'</td>'+ 
+    '<td>'+escapeHtml(h.afterLevel||'')+'</td>'+ 
+    '<td>'+escapeHtml(h.grantType||'')+'</td>'+ 
+    '<td>'+escapeHtml(h.comment||'')+'</td>'+ 
+  '</tr>').join('');
+}
+
+function parseKoreanDateTimeToDate(v){
+  const s=String(v||'').trim();
+  if(!s) return null;
+  const iso=s.match(/(\d{4})[-.]\s*(\d{1,2})[-.]\s*(\d{1,2})/);
+  if(iso) return new Date(Number(iso[1]), Number(iso[2])-1, Number(iso[3]), 23, 59, 59);
+  const kr=s.match(/(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/);
+  if(kr) return new Date(Number(kr[1]), Number(kr[2])-1, Number(kr[3]), 23, 59, 59);
+  const d=new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+function getRollbackCutoffDate(){
+  const input=document.getElementById('levelRollbackDate');
+  if(!input || !input.value){alert('복원 기준 날짜를 선택하세요.');return null;}
+  const parts=input.value.split('-').map(Number);
+  return new Date(parts[0], parts[1]-1, parts[2], 23, 59, 59);
+}
+function getSelectedRollbackPerson(){
+  return String(levelSelectedPerson||'').trim();
+}
+function findRollbackLevel(personName, cutoff){
+  const name=String(personName||'').trim();
+  const history=JSON.parse(localStorage.getItem('levelChangeHistory_v1') || '[]')
+    .filter(h=>String(h.personName||'').trim()===name)
+    .map(h=>Object.assign({},h,{_date:parseKoreanDateTimeToDate(h.savedAt)}))
+    .filter(h=>h._date && h._date<=cutoff)
+    .sort((a,b)=>a._date-b._date);
+
+  if(history.length===0) return null;
+  return history[history.length-1];
+}
+function previewLevelRollback(){
+  const cutoff=getRollbackCutoffDate();
+  if(!cutoff) return;
+  const person=getSelectedRollbackPerson();
+  const msg=document.getElementById('levelRollbackMsg');
+  if(!person){if(msg) msg.innerText='먼저 표에서 직원을 선택하세요.';return;}
+  const row=findRollbackLevel(person, cutoff);
+  if(!row){
+    if(msg) msg.innerText=person+' 직원의 선택 날짜 이전 승인 이력이 없습니다.';
+    return;
+  }
+  if(msg) msg.innerText='조회 결과: '+person+' / '+(row.savedAt||'')+' 기준 '+(row.afterLevel||row.beforeLevel||'-')+' 단계';
+}
+function applyLevelRollback(){
+  const cutoff=getRollbackCutoffDate();
+  if(!cutoff) return;
+  const person=getSelectedRollbackPerson();
+  const msg=document.getElementById('levelRollbackMsg');
+  if(!person){if(msg) msg.innerText='먼저 표에서 직원을 선택하세요.';return;}
+  const row=findRollbackLevel(person, cutoff);
+  if(!row){
+    if(msg) msg.innerText=person+' 직원의 선택 날짜 이전 승인 이력이 없어 복원할 수 없습니다.';
+    return;
+  }
+  if(!confirm(person+' 직원을 '+(row.afterLevel||row.beforeLevel||'-')+' 단계로 복원하시겠습니까?')) return;
+
+  const meta=loadLevelTargetMeta();
+  const current=getLevelTargetMeta(person);
+  meta[person]={
+    processName:row.processName || current.processName || '',
+    workName:row.workName || current.workName || '',
+    autoCount:row.autoCount || current.autoCount || 0,
+    currentLevel:row.afterLevel || row.beforeLevel || current.currentLevel || '1level',
+    changeLevel:'',
+    certDate:current.certDate || '',
+    expireDate:current.expireDate || '',
+    grantType:row.grantType || current.grantType || '자동',
+    comment:(current.comment || '') + (current.comment ? ' / ' : '') + '날짜 기준 복원: '+document.getElementById('levelRollbackDate').value,
+    approved:true,
+    approvedAt:new Date().toLocaleString('ko-KR'),
+    rollbackDate:document.getElementById('levelRollbackDate').value
+  };
+  saveLevelTargetMeta(meta);
+
+  const history=JSON.parse(localStorage.getItem('levelChangeHistory_v1') || '[]');
+  history.push({
+    savedAt:new Date().toLocaleString('ko-KR'),
+    personName:person,
+    processName:meta[person].processName,
+    workName:meta[person].workName,
+    autoCount:meta[person].autoCount,
+    beforeLevel:current.currentLevel,
+    afterLevel:meta[person].currentLevel,
+    grantType:meta[person].grantType,
+    comment:meta[person].comment,
+    action:'날짜기준복원',
+    rollbackDate:meta[person].rollbackDate
+  });
+  localStorage.setItem('levelChangeHistory_v1', JSON.stringify(history));
+
+  refreshLevelTargetList();
+  levelSelectedPerson=person;
+  renderLevelTargetDetail();
+  if(msg) msg.innerText=person+' 직원이 '+meta[person].currentLevel+' 단계로 복원되었습니다.';
+}
+
+function shouldShowLevelTarget(personName){
+  // 전체 인원 조회를 위해 승인완료 여부와 관계없이 목록에 표시
+  return true;
+}
+function isLevelApprovalNeeded(personName){
+  const meta=getLevelTargetMeta(personName);
+  const levelRank={'1level':1,'2level':2,'3level':3,'4level':4};
+  return !!meta.promotionCandidate && ((levelRank[meta.promotionCandidate]||0) > (levelRank[meta.currentLevel]||0));
+}
+
+
+function reloadLevelTargetView(){
+  if(levelTargetViewMode==='all') refreshLevelTargetList('__ALL__');
+  else refreshLevelTargetList('__APPROVAL_NEEDED__');
+}
+
+function cssSafeId(v){
+  return String(v||'').replace(/[^a-zA-Z0-9가-힣_-]/g,'_');
+}
+function buildOptionHtml(options, selected){
+  return options.map(v=>'<option value="'+escapeHtml(v)+'" '+(String(selected||'')===v?'selected':'')+'>'+escapeHtml(v)+'</option>').join('');
+}
+function buildGrantOptionHtml(selected){
+  return LEVEL_GRANT_OPTIONS.map(v=>'<option value="'+escapeHtml(v)+'" '+(String(selected||'자동')===v?'selected':'')+'>'+escapeHtml(v)+'</option>').join('');
+}
+
+
+function showPage(page, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
+  const target=document.getElementById('page-'+page);
+  if(target) target.classList.remove('hidden');
+  document.querySelectorAll('.side-menu button').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  else{
+    const navMap={dashboard:0,monthly:1,skill:2,talentLevel:3,talentEval:4,talentDefect:5};
+    const buttons=document.querySelectorAll('.side-menu button');
+    if(buttons[navMap[page]||0]) buttons[navMap[page]||0].classList.add('active');
+  }
+  if(page==='monthly') { refreshMonthlyFilters(); renderMonthlyTable(); setTimeout(renderMonthlyChart,50); }
+  if(page==='skill') { refreshSkillProcessFilter(); refreshSkillEmployeeFilter(); renderSkillTable(); }
+  if(page==='talentLevel') { refreshLevelTargetList(); }
+}
+function openMonthlyModal(){showPage('monthly');}
+function closeMonthlyModal(){showPage('dashboard');}
+function openSkillModal(){showPage('skill');}
+function closeSkillModal(){showPage('dashboard');}
+function openTalentModal(){showPage('talentLevel');}
+function closeTalentModal(){showPage('dashboard');}
+function makeBlankTalentLevelRow(){
+  return {personName:'',processName:'',workName:'',level:'',certDate:'',expireDate:'',grantType:'',note:''};
+}
+function loadTalentLevelRows(){
+  const saved=localStorage.getItem(TALENT_LEVEL_STORAGE_KEY) || localStorage.getItem('talentLevelRows_v1_30');
+  if(saved){
+    try{
+      const parsed=JSON.parse(saved);
+      if(Array.isArray(parsed) && parsed.length>0) return parsed.map(r=>Object.assign(makeBlankTalentLevelRow(), r));
+    }catch(e){}
+  }
+  return Array.from({length:30},()=>makeBlankTalentLevelRow());
+}
+function saveTalentLevelRows(showAlert=true){
+  const levelRows=[];
+  document.querySelectorAll('#talentLevelTableBody tr').forEach(tr=>{
+    levelRows.push({
+      personName:tr.querySelector('[data-key="personName"]').value.trim(),
+      processName:tr.querySelector('[data-key="processName"]').value.trim(),
+      workName:tr.querySelector('[data-key="workName"]').value.trim(),
+      level:tr.querySelector('[data-key="level"]').value.trim(),
+      certDate:tr.querySelector('[data-key="certDate"]').value,
+      expireDate:tr.querySelector('[data-key="expireDate"]').value,
+      grantType:tr.querySelector('[data-key="grantType"]').value.trim(),
+      note:tr.querySelector('[data-key="note"]').value.trim()
+    });
+  });
+  localStorage.setItem(TALENT_LEVEL_STORAGE_KEY,JSON.stringify(levelRows));
+  refreshTalentLookupOptions();
+  renderTalentLevelMatrix();
+  if(showAlert) alert('직원 레벨관리 데이터가 저장되었습니다.');
+}
+function addTalentLevelRow(){
+  const levelRows=loadTalentLevelRows();
+  levelRows.push(makeBlankTalentLevelRow());
+  localStorage.setItem(TALENT_LEVEL_STORAGE_KEY,JSON.stringify(levelRows));
+  renderTalentLevelTable();
+  const box=document.querySelector('#page-talentLevel .table-box');
+  if(box) box.scrollTop=box.scrollHeight;
+}
+function clearTalentLevelRows(){
+  if(!confirm('직원 레벨관리 입력값을 모두 초기화하시겠습니까?')) return;
+  localStorage.removeItem(TALENT_LEVEL_STORAGE_KEY);
+  localStorage.removeItem('talentLevelRows_v1_30');
+  renderTalentLevelTable();
+}
+function getTalentProcessList(){return TALENT_PROCESS_OPTIONS.filter(Boolean);}
+function getTalentWorkList(){return TALENT_WORK_OPTIONS.filter(Boolean);}
+function getTalentPeopleNames(){
+  const set=new Set();
+  loadTalentLevelRows().forEach(r=>{const n=String(r.personName||'').trim(); if(n) set.add(n);});
+  return Array.from(set).sort((a,b)=>a.localeCompare(b,'ko'));
+}
+function refreshTalentLookupOptions(){
+  const list=document.getElementById('talentPersonList');
+  if(!list) return;
+  list.innerHTML=getTalentPeopleNames().map(n=>'<option value="'+escapeHtml(n)+'"></option>').join('');
+}
+function addTalentPersonFullMatrix(){
+  const input=document.getElementById('talentNewPersonName');
+  const person=normalizeName(input ? input.value : '');
+  if(!person){alert('추가할 이름을 입력하세요.');return;}
+  const data=loadTalentLevelRows();
+  const exists=new Set(data.filter(r=>String(r.personName||'').trim()===person).map(r=>String(r.processName||'').trim()+'|'+String(r.workName||'').trim()));
+  let added=0;
+  getTalentProcessList().forEach(processName=>{
+    getTalentWorkList().forEach(workName=>{
+      const key=processName+'|'+workName;
+      if(!exists.has(key)){
+        data.push(Object.assign(makeBlankTalentLevelRow(),{personName:person,processName,workName}));
+        added++;
+      }
+    });
+  });
+  localStorage.setItem(TALENT_LEVEL_STORAGE_KEY,JSON.stringify(data));
+  if(input) input.value='';
+  const lookup=document.getElementById('talentLookupName');
+  if(lookup) lookup.value=person;
+  renderTalentLevelTable();
+  refreshTalentLookupOptions();
+  renderTalentLevelMatrix();
+  alert(person+' 직원의 공정/업무 레벨 입력 행 '+added+'건을 생성했습니다.');
+}
+function renderTalentLevelMatrix(){
+  const box=document.getElementById('talentLevelMatrixBox');
+  if(!box) return;
+  const input=document.getElementById('talentLookupName');
+  const person=String(input ? input.value : '').trim();
+  if(!person){box.innerHTML='<div class="badge-note">이름을 입력하거나 선택하면 하단에 8개 공정 × 16개 업무 Level 표가 표시됩니다.</div>';return;}
+  const data=loadTalentLevelRows().filter(r=>String(r.personName||'').trim()===person);
+  const processes=getTalentProcessList();
+  const works=getTalentWorkList();
+  const levelMap={};
+  data.forEach(r=>{
+    const key=String(r.processName||'').trim()+'|'+String(r.workName||'').trim();
+    levelMap[key]=String(r.level||'').trim() || '-';
+  });
+  const head='<tr><th>공정명 \ 업무명</th>'+works.map(w=>'<th>'+escapeHtml(w)+'</th>').join('')+'</tr>';
+  const body=processes.map(p=>'<tr><th>'+escapeHtml(p)+'</th>'+works.map(w=>'<td class="level-cell">'+escapeHtml(levelMap[p+'|'+w]||'-')+'</td>').join('')+'</tr>').join('');
+  box.innerHTML='<table class="level-matrix"><thead>'+head+'</thead><tbody>'+body+'</tbody></table>';
+}
+
+function renderTalentLevelTable(){
+  const tbody=document.getElementById('talentLevelTableBody');
+  if(!tbody) return;
+  const data=loadTalentLevelRows();
+  const levels=['','Lv1','Lv2','Lv3','Lv4'];
+  const grantTypes=['','자동','수동','평가','재인증'];
+  const optionHtml=(options, selected)=>options.map(v=>'<option value="'+escapeHtml(v)+'" '+((selected||'')===v?'selected':'')+'>'+escapeHtml(v)+'</option>').join('');
+  tbody.innerHTML=data.map((r,i)=>{
+    r=r||{};
+    return '<tr>'+ 
+      '<td>'+(i+1)+'</td>'+ 
+      '<td><input data-key="personName" value="'+escapeHtml(r.personName||'')+'" oninput="saveTalentLevelRows(false)"></td>'+ 
+      '<td><select data-key="processName" onchange="saveTalentLevelRows(false)">'+optionHtml(TALENT_PROCESS_OPTIONS,r.processName||'')+'</select></td>'+ 
+      '<td><select data-key="workName" onchange="saveTalentLevelRows(false)">'+optionHtml(TALENT_WORK_OPTIONS,r.workName||'')+'</select></td>'+ 
+      '<td><select data-key="level" onchange="saveTalentLevelRows(false)">'+optionHtml(levels,r.level||'')+'</select></td>'+ 
+      '<td><input data-key="certDate" type="date" value="'+escapeHtml(r.certDate||'')+'" onchange="saveTalentLevelRows(false)"></td>'+ 
+      '<td><input data-key="expireDate" type="date" value="'+escapeHtml(r.expireDate||'')+'" onchange="saveTalentLevelRows(false)"></td>'+ 
+      '<td><select data-key="grantType" onchange="saveTalentLevelRows(false)">'+optionHtml(grantTypes,r.grantType||'')+'</select></td>'+ 
+      '<td><input data-key="note" value="'+escapeHtml(r.note||'')+'" oninput="saveTalentLevelRows(false)"></td>'+ 
+    '</tr>';
+  }).join('');
+  refreshTalentLookupOptions();
+}
+
+
+function getCurrentTalentLevelRows(){
+  const levelRows=[];
+  document.querySelectorAll('#talentLevelTableBody tr').forEach(tr=>{
+    levelRows.push({
+      personName:tr.querySelector('[data-key="personName"]').value.trim(),
+      processName:tr.querySelector('[data-key="processName"]').value.trim(),
+      workName:tr.querySelector('[data-key="workName"]').value.trim(),
+      level:tr.querySelector('[data-key="level"]').value.trim(),
+      certDate:tr.querySelector('[data-key="certDate"]').value,
+      expireDate:tr.querySelector('[data-key="expireDate"]').value,
+      grantType:tr.querySelector('[data-key="grantType"]').value.trim(),
+      note:tr.querySelector('[data-key="note"]').value.trim()
+    });
+  });
+  return levelRows;
+}
+function loadTalentLevelHistory(){
+  const saved=localStorage.getItem(TALENT_LEVEL_HISTORY_STORAGE_KEY);
+  if(saved){try{const parsed=JSON.parse(saved);return Array.isArray(parsed)?parsed:[];}catch(e){}}
+  return [];
+}
+function saveTalentLevelHistory(){
+  saveTalentLevelRows(false);
+  const now=new Date().toLocaleString('ko-KR');
+  const current=getCurrentTalentLevelRows().filter(r=>Object.values(r).some(v=>String(v||'').trim()!==''));
+  if(current.length===0){alert('로그로 저장할 직원 레벨관리 데이터가 없습니다.');return;}
+  const history=loadTalentLevelHistory();
+  current.forEach(r=>history.push(Object.assign({savedAt:now},r)));
+  localStorage.setItem(TALENT_LEVEL_HISTORY_STORAGE_KEY,JSON.stringify(history));
+  renderTalentLevelHistoryTable();
+  const box=document.getElementById('talentLevelHistoryBox');
+  if(box) box.style.display='block';
+  alert('레벨 변경이력 로그가 저장되었습니다. 저장 건수: '+current.length+'건');
+}
+function toggleTalentLevelHistory(){
+  const box=document.getElementById('talentLevelHistoryBox');
+  if(!box) return;
+  const show=box.style.display==='none' || !box.style.display;
+  box.style.display=show?'block':'none';
+  if(show) renderTalentLevelHistoryTable();
+}
+function renderTalentLevelHistoryTable(){
+  const tbody=document.getElementById('talentLevelHistoryTableBody');
+  if(!tbody) return;
+  const history=loadTalentLevelHistory();
+  tbody.innerHTML=history.slice().reverse().map(r=>'<tr>'+
+    '<td>'+escapeHtml(r.savedAt||'')+'</td>'+
+    '<td>'+escapeHtml(r.personName||'')+'</td>'+
+    '<td>'+escapeHtml(r.processName||'')+'</td>'+
+    '<td>'+escapeHtml(r.workName||'')+'</td>'+
+    '<td>'+escapeHtml(r.level||'')+'</td>'+
+    '<td>'+escapeHtml(r.certDate||'')+'</td>'+
+    '<td>'+escapeHtml(r.expireDate||'')+'</td>'+
+    '<td>'+escapeHtml(r.grantType||'')+'</td>'+
+    '<td>'+escapeHtml(r.note||'')+'</td>'+
+  '</tr>').join('');
+}
+function downloadTalentLevelHistoryExcel(){
+  const history=loadTalentLevelHistory();
+  if(history.length===0){alert('다운로드할 레벨 변경이력이 없습니다.');return;}
+  if(typeof XLSX==='undefined'){alert('엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.');return;}
+  const headers=['저장일시','성명','공정명','업무명','현재레벨','인증일','만료일','부여방식','코멘트'];
+  const aoa=[headers,...history.map(r=>[r.savedAt||'',r.personName||'',r.processName||'',r.workName||'',r.level||'',r.certDate||'',r.expireDate||'',r.grantType||'',r.note||''])];
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=headers.map(h=>({wch:Math.max(12,h.length+6)}));
+  XLSX.utils.book_append_sheet(wb,ws,'Level_History');
+  const today=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,'talent_level_history_'+today+'.xlsx');
+}
+
+
+function normalizeText(t){
+  return String(t||'')
+    .replace(/\r/g,'')
+    .replace(/[：]/g,':')
+    .replace(/[–—]/g,'-')
+    .replace(/\t/g,' ');
+}
+function normalizeName(name){
+  return String(name||'')
+    .replace(/\([^)]*\)/g,'')
+    .replace(/\bTL\b/gi,'')
+    .trim()
+    .replace(/\s+/g,'');
+}
+function cleanValue(v){return String(v||'').trim().replace(/^[:\s]+/,'').trim();}
+function escapeHtml(v){return String(v??'').replace(/[&<>"]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+function makeInputId(){return 'INP-'+new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)+'-'+Math.random().toString(36).slice(2,6).toUpperCase();}
+function escapeRegExp(s){return String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+
+function getLineValue(text,label){
+  text=normalizeText(text);
+  const re=new RegExp('(?:^|\\n)\\s*(?:\\d+\\.\\s*)?'+escapeRegExp(label)+'\\s*:?\\s*([^\\n]*)','i');
+  const m=text.match(re);
+  return m?cleanValue(m[1]):'';
+}
+function getSectionByAliases(text, aliases){
+  text=normalizeText(text);
+  for(const alias of aliases){
+    const re=new RegExp('(?:^|\\n)\\s*(?:\\d+\\.\\s*)?'+escapeRegExp(alias)+'(?:\\s*\\([^\\n]*?\\))?\\s*:?\\s*([\\s\\S]*?)(?=\\n\\s*(?:\\d+\\.\\s*)?(?:'+allSectionLabelPattern()+')\\s*(?:\\([^\\n]*?\\))?\\s*:|\\n\\s*\\d+\\.\\s*|$)','i');
+    const m=text.match(re);
+    if(m) return cleanValue(m[1]);
+  }
+  return '';
+}
+function allSectionLabelPattern(){
+  const labels=['작업일','고객 담당자','Applied 담당자','안전감독자','공정명','설비명','S/N','호기명','위치','작업시간','작업인원','유동인원','작업내용','작업인원별 작업내용','작업리더','작업환경','특이사항','남은작업','진행상황','8C/6C'];
+  processItems.forEach(item=>item.aliases.forEach(a=>labels.push(a)));
+  return labels.map(escapeRegExp).sort((a,b)=>b.length-a.length).join('|');
+}
+function splitPeople(value){
+  value=String(value||'')
+    .replace(/N\/?A|NA|na|n\/a|없음|특이사항 없음|진행중|진행 중|Third Party MNJ/gi,'')
+    .replace(/\([^)]*\)/g,'')
+    .replace(/\bTL\b/gi,'')
+    .replace(/010[-\d\s]+/g,'')
+    .replace(/[;|]/g,',');
+  return value.split(/[,，\/\n]+/).map(normalizeName).filter(Boolean)
+    .filter(n=>!['리더','보조','참여','작업중','진행중'].includes(n));
+}
+function parseRoleNames(section){
+  let t=normalizeText(section).trim();
+  if(!t || /^(N\/?A|NA|없음)$/i.test(t)) return {leaders:[], participants:[]};
+  t=t.replace(/\s*\/\s*/g,'\n');
+  t=t.replace(/(리더\s*[-:]|보조\s*[-:]|참여\s*[-:])/g,'\n$1');
+  const leaders=[];
+  const participants=[];
+  const roleRe=/(리더|보조|참여)\s*[-:]\s*([\s\S]*?)(?=\n\s*(?:리더|보조|참여)\s*[-:]|$)/gi;
+  let m;
+  while((m=roleRe.exec(t))!==null){
+    const role=m[1];
+    const names=splitPeople(m[2]);
+    if(role==='리더') leaders.push(...names);
+    else participants.push(...names);
+  }
+  // 리더-/보조- 구분이 없고 그냥 이름만 있는 경우는 리더로 보지 않고 무시. Third Party/N/A도 무시.
+  return {leaders:[...new Set(leaders)], participants:[...new Set(participants)]};
+}
+function parseProcessSection(text,item){return getSectionByAliases(text,item.aliases);}
+
+function parseManualText(text){
+  text=normalizeText(text);
+  const inputId=makeInputId();
+  const uploadedAt=new Date().toLocaleString('ko-KR');
+  const workDate=getLineValue(text,'작업일');
+  const equipmentName=getLineValue(text,'설비명');
+  const serialNo=getLineValue(text,'S/N');
+  const processName=getLineValue(text,'공정명');
+  const workerValue=getLineValue(text,'작업인원');
+  const mainLeaderValue=getLineValue(text,'작업리더');
+  const people=splitPeople(workerValue);
+  const mainLeaders=splitPeople(mainLeaderValue);
+  const byName={};
+  function ensurePerson(name){
+    const n=normalizeName(name);
+    if(!n) return null;
+    if(!byName[n]){
+      const row={inputId,uploadedAt,workDate,equipmentName,serialNo,personName:n,processName,mainLeaderCount:0};
+      processItems.forEach(item=>{row[item.key+'Leader']=0;row[item.key+'Participate']=0;});
+      byName[n]=row;
+    }
+    return byName[n];
+  }
+  people.forEach(ensurePerson);
+  mainLeaders.forEach(name=>{const r=ensurePerson(name); if(r) r.mainLeaderCount=1;});
+  processItems.forEach(item=>{
+    const section=parseProcessSection(text,item);
+    const parsed=parseRoleNames(section);
+    parsed.leaders.forEach(name=>{const r=ensurePerson(name); if(r) r[item.key+'Leader']=1;});
+    parsed.participants.forEach(name=>{const r=ensurePerson(name); if(r) r[item.key+'Participate']=1;});
+  });
+  return {inputId,uploadedAt,parsedRows:Object.values(byName),meta:{workDate,equipmentName,serialNo,processName,peopleCount:people.length}};
+}
+function getDisplayColumns(){
+  const cols=[...baseColumns];
+  processItems.forEach(item=>{cols.push({key:item.key+'Leader',label:item.label+' 리더횟수'});cols.push({key:item.key+'Participate',label:item.label+' 참여횟수'});});
+  return cols;
+}
+function getDownloadColumns(){return [{key:'inputId',label:'입력ID'},{key:'uploadedAt',label:'등록일시'},...getDisplayColumns()];}
+function buildPreview(result){
+  const cols=getDisplayColumns();
+  const lines=[];
+  lines.push('입력ID: '+result.inputId);
+  lines.push('작업일: '+(result.meta.workDate||'-'));
+  lines.push('설비명: '+(result.meta.equipmentName||'-'));
+  lines.push('S/N: '+(result.meta.serialNo||'-'));
+  lines.push('공정명: '+(result.meta.processName||'-'));
+  lines.push('작업인원 감지: '+result.meta.peopleCount+'명 / 생성 행: '+result.parsedRows.length+'명');
+  lines.push('');
+  result.parsedRows.forEach(r=>{
+    const counts=[];
+    if(r.mainLeaderCount) counts.push('작업리더 1');
+    processItems.forEach(item=>{
+      if(r[item.key+'Leader']) counts.push(item.label+' 리더 1');
+      if(r[item.key+'Participate']) counts.push(item.label+' 참여 1');
+    });
+    lines.push(r.personName+' => '+(counts.length?counts.join(', '):'카운트 없음'));
+  });
+  return lines.join('\n');
+}
+function convertManualText(){
+  const text=document.getElementById('manualText').value.trim();
+  if(!text){alert('수기입력 내용을 붙여넣으세요.');return;}
+  const result=parseManualText(text);
+  pendingResult=result;
+  document.getElementById('convertedText').value=buildPreview(result);
+  const status=document.getElementById('convertStatus');
+  if(result.parsedRows.length===0){status.innerHTML='<span class="warn">작업인원을 찾지 못했습니다.</span>';}
+  else{status.innerHTML='<span class="ok">변환 완료: '+result.parsedRows.length+'명. 데이터 업로드 버튼을 누르면 누적됩니다.</span>';}
+}
+function uploadConvertedData(){
+  if(!pendingResult){convertManualText();}
+  if(!pendingResult || pendingResult.parsedRows.length===0){alert('업로드할 변환 데이터가 없습니다.');return;}
+  rows=rows.concat(pendingResult.parsedRows);
+  uploadHistory.push({inputId:pendingResult.inputId,count:pendingResult.parsedRows.length});
+  persist();render();
+  alert('업로드 완료: '+pendingResult.parsedRows.length+'명');
+  pendingResult=null;
+  document.getElementById('manualText').value='';
+  document.getElementById('convertedText').value='';
+  document.getElementById('convertStatus').innerText='변환 대기중';
+}
+function clearInput(){document.getElementById('manualText').value='';document.getElementById('convertedText').value='';pendingResult=null;document.getElementById('convertStatus').innerText='변환 대기중';}
+function undoLastUpload(){
+  if(uploadHistory.length===0){alert('취소할 입력 데이터가 없습니다.');return;}
+  const last=uploadHistory.pop();
+  rows=rows.filter(r=>r.inputId!==last.inputId);
+  persist();render();alert('마지막 입력이 취소되었습니다.');
+}
+function resetAllData(){if(!confirm('누적 데이터를 모두 삭제하시겠습니까?')) return;rows=[];uploadHistory=[];persist();render();}
+function persist(){localStorage.setItem(STORAGE_KEY,JSON.stringify({rows,uploadHistory,lastSavedAt:new Date().toLocaleString('ko-KR')}));const st=document.getElementById('saveStatus');if(st)st.innerText='자동 저장됨: '+new Date().toLocaleString('ko-KR');}
+function manualPersist(){persist();render();alert('누적 데이터가 저장되었습니다.');}
+function load(){const saved=localStorage.getItem(STORAGE_KEY);if(!saved)return;try{const data=JSON.parse(saved);rows=Array.isArray(data.rows)?data.rows:[];uploadHistory=Array.isArray(data.uploadHistory)?data.uploadHistory:[];window.__lastSavedAt=data.lastSavedAt||'';}catch(e){rows=[];uploadHistory=[];}}
+function getPersonSearchKeyword(){
+  const input=document.getElementById('personSearchInput');
+  return input ? String(input.value||'').trim().toLowerCase() : '';
+}
+function clearPersonSearch(){
+  const input=document.getElementById('personSearchInput');
+  if(input) input.value='';
+  render();
+}
+function getFilteredRowsWithIndex(){
+  const keyword=getPersonSearchKeyword();
+  return rows.map((r,idx)=>({r,idx})).filter(item=>{
+    if(!keyword) return true;
+    return String(item.r.personName||'').toLowerCase().includes(keyword);
+  });
+}
+function render(){
+  const cols=getDisplayColumns();
+  const filteredRows=getFilteredRowsWithIndex();
+  document.getElementById('tableHead').innerHTML='<tr><th><input type="checkbox" id="selectAllRows" onclick="toggleAllRows(this)"></th>'+cols.map(c=>'<th>'+escapeHtml(c.label)+'</th>').join('')+'</tr>';
+  document.getElementById('tableBody').innerHTML=filteredRows.map(item=>'<tr><td><input type="checkbox" class="row-check" value="'+item.idx+'"></td>'+cols.map(c=>'<td>'+escapeHtml(item.r[c.key]??'')+'</td>').join('')+'</tr>').join('');
+  document.getElementById('rowCount').innerText=rows.length;
+  const filteredCount=document.getElementById('filteredRowCount');
+  if(filteredCount) filteredCount.innerText=filteredRows.length;
+  document.getElementById('lastInputId').innerText=uploadHistory.length?uploadHistory[uploadHistory.length-1].inputId:'-';
+  document.getElementById('persistStatus').innerText=rows.length>0?'저장 유지중':'저장 데이터 없음';
+  const ss=document.getElementById('saveStatus');if(ss&&window.__lastSavedAt)ss.innerText='마지막 저장: '+window.__lastSavedAt;
+  const levelPage=document.getElementById('page-talentLevel'); if(levelPage && !levelPage.classList.contains('hidden')) refreshLevelTargetList();
+}
+function toggleAllRows(source){
+  document.querySelectorAll('.row-check').forEach(ch=>{ch.checked=source.checked;});
+}
+function deleteSelectedRows(){
+  const selected=Array.from(document.querySelectorAll('.row-check:checked')).map(ch=>Number(ch.value));
+  if(selected.length===0){alert('삭제할 행을 선택하세요.');return;}
+  if(!confirm('선택한 '+selected.length+'건을 삭제하시겠습니까?')) return;
+  const selectedSet=new Set(selected);
+  rows=rows.filter((r,idx)=>!selectedSet.has(idx));
+  const remainingInputIds=new Set(rows.map(r=>r.inputId));
+  uploadHistory=uploadHistory.filter(h=>remainingInputIds.has(h.inputId));
+  persist();
+  render();
+  alert('선택한 데이터가 삭제되었습니다.');
+}
+
+
+function getSkillColumns(){
+  const cols=[
+    {key:'personName',label:'직원명'},
+    {key:'processName',label:'공정명'},
+    {key:'totalInputCount',label:'총투입횟수'},
+    {key:'mainLeaderCount',label:'작업리더'}
+  ];
+  processItems.forEach(item=>{
+    cols.push({key:item.key+'Leader',label:item.label+' 리더'});
+    cols.push({key:item.key+'Participate',label:item.label+' 참여'});
+  });
+  return cols;
+}
+function getAvailableProcesses(){
+  const set=new Set();
+  rows.forEach(r=>{
+    const process=String(r.processName||'').trim()||'-';
+    set.add(process);
+  });
+  return Array.from(set).sort((a,b)=>a.localeCompare(b,'ko'));
+}
+function refreshSkillProcessFilter(){
+  const select=document.getElementById('skillProcessFilter');
+  if(!select) return;
+  const current=select.value || '__ALL__';
+  const processes=getAvailableProcesses();
+  select.innerHTML='<option value="__ALL__">전체 공정</option>'+processes.map(p=>'<option value="'+escapeHtml(p)+'">'+escapeHtml(p)+'</option>').join('');
+  if(current==='__ALL__' || processes.includes(current)) select.value=current;
+  else select.value='__ALL__';
+}
+function getSelectedSkillProcess(){
+  const select=document.getElementById('skillProcessFilter');
+  return select ? select.value : '__ALL__';
+}
+
+
+
+function getAvailableSkillEmployees(){
+  const selectedProcess=getSelectedSkillProcess();
+  const set=new Set();
+  rows.forEach(r=>{
+    const person=String(r.personName||'').trim();
+    const process=String(r.processName||'').trim()||'-';
+    if(!person) return;
+    if(selectedProcess!=='__ALL__' && process!==selectedProcess) return;
+    set.add(person);
+  });
+  return Array.from(set).sort((a,b)=>a.localeCompare(b,'ko'));
+}
+function refreshSkillEmployeeFilter(){
+  const select=document.getElementById('skillEmployeeFilter');
+  if(!select) return;
+  const current=select.value || '__ALL__';
+  const employees=getAvailableSkillEmployees();
+  select.innerHTML='<option value="__ALL__">전체 직원</option>'+employees.map(name=>'<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>').join('');
+  if(current==='__ALL__' || employees.includes(current)) select.value=current;
+  else select.value='__ALL__';
+}
+function getSelectedSkillEmployee(){
+  const select=document.getElementById('skillEmployeeFilter');
+  return select ? select.value : '__ALL__';
+}
+
+function buildSkillRows(){
+  const selectedProcess=getSelectedSkillProcess();
+  const selectedEmployee=getSelectedSkillEmployee();
+  const map={};
+  rows.forEach(r=>{
+    const person=String(r.personName||'').trim();
+    const process=String(r.processName||'').trim()||'-';
+    if(!person) return;
+    if(selectedProcess!=='__ALL__' && process!==selectedProcess) return;
+    if(selectedEmployee!=='__ALL__' && person!==selectedEmployee) return;
+
+    // 직원명 기준으로만 합산하여 팝업에서 같은 이름이 중복 표시되지 않게 함
+    const key=person;
+    if(!map[key]){
+      const row={
+        personName:person,
+        processName:selectedProcess==='__ALL__' ? '전체 공정' : selectedProcess,
+        totalInputCount:0,
+        mainLeaderCount:0
+      };
+      processItems.forEach(item=>{row[item.key+'Leader']=0;row[item.key+'Participate']=0;});
+      map[key]=row;
+    }
+    map[key].totalInputCount += 1;
+    map[key].mainLeaderCount += Number(r.mainLeaderCount)||0;
+    processItems.forEach(item=>{
+      map[key][item.key+'Leader'] += Number(r[item.key+'Leader'])||0;
+      map[key][item.key+'Participate'] += Number(r[item.key+'Participate'])||0;
+    });
+  });
+  return Object.values(map).sort((a,b)=>a.personName.localeCompare(b.personName,'ko'));
+}
+function renderSkillTable(){
+  refreshSkillProcessFilter();
+  refreshSkillEmployeeFilter();
+  const skillRows=buildSkillRows();
+  const cols=getSkillColumns();
+  document.getElementById('skillTableHead').innerHTML='<tr>'+cols.map(c=>'<th>'+escapeHtml(c.label)+'</th>').join('')+'</tr>';
+  document.getElementById('skillTableBody').innerHTML=skillRows.map(r=>'<tr>'+cols.map(c=>'<td>'+escapeHtml(r[c.key]??0)+'</td>').join('')+'</tr>').join('');
+  document.getElementById('skillEmployeeCount').innerText=new Set(skillRows.map(r=>r.personName)).size;
+}
+function openSkillModal(){showPage('skill');}
+function closeSkillModal(){showPage('dashboard');}
+function downloadSkillExcel(){
+  const skillRows=buildSkillRows();
+  if(skillRows.length===0){alert('다운로드할 숙련도 데이터가 없습니다.');return;}
+  if(typeof XLSX==='undefined'){alert('엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.');return;}
+  const cols=getSkillColumns();
+  const selectedProcess=getSelectedSkillProcess();
+  const aoa=[cols.map(c=>c.label),...skillRows.map(r=>cols.map(c=>r[c.key]??0))];
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=cols.map(c=>({wch:Math.max(12,String(c.label).length+3)}));
+  XLSX.utils.book_append_sheet(wb,ws,'Skill_Summary');
+  const today=new Date().toISOString().slice(0,10);
+  const suffix=selectedProcess==='__ALL__'?'all':selectedProcess.replace(/[\\/:*?"<>|\s]+/g,'_');
+  XLSX.writeFile(wb,'process_skill_summary_'+suffix+'_'+today+'.xlsx');
+}
+window.onclick=function(event){
+  const skillModal=document.getElementById('skillModal');
+  const monthlyModal=document.getElementById('monthlyModal');
+  const talentModal=document.getElementById('talentModal');
+  if(event.target===skillModal) closeSkillModal();
+  if(event.target===monthlyModal) closeMonthlyModal();
+  if(event.target===talentModal) closeTalentModal();
+  const levelRestoreLogModal=document.getElementById('levelRestoreLogModal');
+  if(event.target===levelRestoreLogModal) closeLevelRestoreLogModal();
+  const panel=document.getElementById('monthlyProcessFilterPanel');
+  const filter=document.querySelector('#monthlyModal .excel-filter');
+  if(panel && filter && !filter.contains(event.target)) panel.classList.remove('show');
+};
+
+
+
+function openTalentModal(){showPage('talentLevel');}
+function closeTalentModal(){showPage('dashboard');}
+function showTalentTab(tab, btn){
+  document.querySelectorAll('.talent-tab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  else{
+    const map={level:0,evaluation:1,defect:2};
+    const tabs=document.querySelectorAll('.talent-tab');
+    if(tabs[map[tab]||0]) tabs[map[tab]||0].classList.add('active');
+  }
+
+  const titles={
+    level:'직원 레벨관리',
+    evaluation:'평가기록',
+    defect:'불량이력'
+  };
+  const desc={
+    level:'직원별 레벨, 숙련도, 공정별 역량을 관리하는 화면입니다.',
+    evaluation:'정기평가, 현장평가, 작업 태도 평가 이력을 등록하고 확인하는 화면입니다.',
+    defect:'작업자별 불량 발생 이력, 조치 내용, 개선 이력을 관리하는 화면입니다.'
+  };
+
+  document.getElementById('talentPanel').innerHTML=
+    '<div class="talent-box"><h3>'+titles[tab]+'</h3><div class="small">'+desc[tab]+'</div><br><div class="small">※ 세부 입력/조회 기능은 이후 확장할 수 있도록 메뉴 영역만 먼저 구성했습니다.</div></div>';
+}
+
+
+function buildLevelTargetRows(){
+  const map={};
+  rows.forEach(r=>{
+    const person=String(r.personName||'').trim();
+    if(!person) return;
+    if(!map[person]) map[person]={personName:person,totalInputCount:0,processCounts:{},manual:false};
+    map[person].totalInputCount += 1;
+    const process=String(r.processName||'').trim() || '-';
+    map[person].processCounts[process]=(map[person].processCounts[process]||0)+1;
+  });
+  loadManualLevelEmployees().forEach(name=>{
+    if(!map[name]) map[name]={personName:name,totalInputCount:0,processCounts:{'수기추가':0},manual:true};
+    else map[name].manual=true;
+  });
+  const deletedSet=new Set(loadDeletedLevelEmployees());
+  return Object.values(map)
+    .filter(t=>!deletedSet.has(t.personName))
+    .sort((a,b)=>a.personName.localeCompare(b.personName,'ko'));
+}
+
+
+
+
+function resetApprovedRowsToPending(){
+  const meta=loadLevelTargetMeta();
+  let changed=0;
+  Object.keys(meta || {}).forEach(name=>{
+    const row=meta[name] || {};
+    if(row.approved){
+      row.approved=false;
+      row.approvedAt='';
+      row.changeLevel=row.currentLevel || row.changeLevel || '';
+      changed++;
+    }
+  });
+  if(changed>0) saveLevelTargetMeta(meta);
+  return changed;
+}
+
+function refreshLevelTargetListWithApprovalReset(){
+  const changed=resetApprovedRowsToPending();
+  refreshLevelTargetList();
+  if(changed>0){
+    const msg=document.getElementById('levelRollbackMsg');
+    if(msg) msg.innerText='목록 새로고침 완료: 승인완료 '+changed+'건이 현재레벨 유지 상태로 대기 변경되었습니다.';
+  }
+}
+
+
+function refreshLevelApprovalNeededSelect(currentValue){
+  // 이름 조회/승인 필요 직원 드롭다운은 사용하지 않습니다.
+  // 승인 필요 인원 수는 refreshLevelTargetList에서 직접 계산합니다.
+}
+function showApprovalNeededLevelTargets(){
+  levelTargetViewMode='approval';
+  levelSelectedPerson='';
+  refreshLevelTargetList('__APPROVAL_NEEDED__');
+}
+function showAllLevelTargets(){
+  levelTargetViewMode='all';
+  levelSelectedPerson='';
+  refreshLevelTargetList('__ALL__');
+}
+function onLevelNameSelectChange(){
+  renderLevelTargetDetail();
+}
+function onLevelApprovalNeededSelectChange(){
+  showApprovalNeededLevelTargets();
+}
+function reloadLevelTargetView(){
+  if(levelTargetViewMode==='all') refreshLevelTargetList('__ALL__');
+  else refreshLevelTargetList('__APPROVAL_NEEDED__');
+}
+function resetLevelManagementToInitial(){
+  if(!confirm('직원 레벨관리의 저장/승인/복원 이력을 모두 삭제하고 최초 자동 계산 상태로 초기화하시겠습니까? 누적 작업이력 데이터는 삭제되지 않습니다.')) return;
+  ['levelTargetMeta_v5','levelTargetMeta_v4','levelTargetMeta_v3','levelTargetMeta_v2','levelTargetMeta_v1','levelChangeHistory_v1',LEVEL_MANUAL_EMPLOYEES_STORAGE_KEY,LEVEL_DELETED_EMPLOYEES_STORAGE_KEY].forEach(k=>localStorage.removeItem(k));
+  levelTargetViewMode='approval';
+  levelSelectedPerson='';
+  refreshLevelTargetList('__APPROVAL_NEEDED__');
+  refreshLevelRestoreLogFilters();
+  renderLevelRestoreLogTable();
+  const msg=document.getElementById('levelRollbackMsg');
+  if(msg) msg.innerText='직원 레벨관리 저장값/승인이 최초 상태로 초기화되었습니다. 누적 데이터는 유지됩니다.';
+}
+
+function refreshLevelTargetList(filterName){
+  renderManualLevelEmployeeRows();
+  const allTargets=buildLevelTargetRows().filter(t=>shouldShowLevelTarget(t.personName));
+  const allApprovalTargets=allTargets.filter(t=>isLevelApprovalNeeded(t.personName));
+  const requested=(filterName!==undefined && filterName!==null) ? String(filterName||'').trim() : '';
+
+  if(requested==='__ALL__') levelTargetViewMode='all';
+  else if(requested==='__APPROVAL_NEEDED__') levelTargetViewMode='approval';
+
+  const showAll=levelTargetViewMode==='all';
+  const targets=showAll ? allTargets : allApprovalTargets;
+  const approveNeededCount=allApprovalTargets.length;
+  const count=document.getElementById('levelTargetCount');
+  if(count) count.innerText=targets.length;
+  const approveCount=document.getElementById('levelApproveCount');
+  if(approveCount) approveCount.innerText=approveNeededCount;
+  const modeLabel=document.getElementById('levelViewModeLabel');
+  if(modeLabel) modeLabel.innerText=showAll ? '전직원' : '승인 필요 직원';
+
+  const tbody=document.getElementById('levelTargetTableBody');
+  if(tbody){
+    tbody.innerHTML=targets.map((t,i)=>{
+      const meta=getLevelTargetMeta(t.personName);
+      const safe=cssSafeId(t.personName);
+      const approveNeeded=isLevelApprovalNeeded(t.personName);
+      const candidateText=approveNeeded ? '<span class="level-approve-badge">승인필요 '+escapeHtml(meta.promotionCandidate)+'</span>' : (meta.approved ? '<span class="level-ok-badge">승인완료</span>' : '<span class="level-wait-badge">대기</span>');
+      return '<tr class="'+(approveNeeded?'level-approve-needed':'')+'">'+
+        '<td class="level-no-col"><input type="checkbox" class="level-restore-check" value="'+escapeHtml(t.personName)+'"></td>'+
+        '<td class="level-no-col" onclick="selectLevelTargetName(\''+escapeJs(t.personName)+'\')" style="cursor:pointer">'+(i+1)+'</td>'+
+        '<td class="level-name-col" onclick="selectLevelTargetName(\''+escapeJs(t.personName)+'\')" style="cursor:pointer">'+escapeHtml(t.personName)+'</td>'+
+        '<td>'+t.totalInputCount+'</td>'+
+        '<td>'+escapeHtml(meta.processName||'-')+'</td>'+
+        '<td>'+escapeHtml(meta.workName||'-')+' <span class="small">('+escapeHtml(meta.autoCount||0)+'회)</span></td>'+
+        '<td><b>'+escapeHtml(meta.currentLevel||'-')+'</b>'+candidateText+'</td>'+
+        '<td><select id="levelChange_'+safe+'" class="level-level-select">'+buildOptionHtml(LEVEL_OPTIONS, meta.changeLevel || meta.currentLevel)+'</select></td>'+
+        '<td><input id="levelCert_'+safe+'" class="level-date-input" type="date" value="'+escapeHtml(meta.certDate||'')+'"></td>'+
+        '<td><input id="levelExpire_'+safe+'" class="level-date-input" type="date" value="'+escapeHtml(meta.expireDate||'')+'"></td>'+
+        '<td><select id="levelGrant_'+safe+'" class="level-grant-select">'+buildGrantOptionHtml(meta.grantType)+'</select></td>'+
+        '<td><input id="levelComment_'+safe+'" class="level-comment-input" type="text" value="'+escapeHtml(meta.comment||'')+'" placeholder="코멘트 수기입력"></td>'+
+        '<td><button class="btn green" onclick="saveLevelTargetRow(\''+escapeJs(t.personName)+'\')">코멘트 저장</button> <button class="btn" onclick="approveLevelTargetRow(\''+escapeJs(t.personName)+'\')">승인완료</button> '+(meta.approved?'<button class="btn red" onclick="restoreLastLevelApproval(\''+escapeJs(t.personName)+'\')">승인취소/복원</button>':'')+' <span id="levelSaveMsg_'+safe+'" class="level-save-msg"></span></td>'+ 
+      '</tr>';
+    }).join('');
+    if(targets.length===0){
+      tbody.innerHTML='<tr><td colspan="13">'+(showAll?'조회된 직원이 없습니다.':'승인 필요 직원이 없습니다. 전직원 확인 버튼으로 전체 목록을 조회할 수 있습니다.')+'</td></tr>';
+    }
+  }
+  renderLevelTargetDetail();
+}
+
+
+
+
+
+function selectLevelTargetName(name){
+  levelSelectedPerson=String(name||'').trim();
+  renderLevelTargetDetail();
+}
+
+
+
+
+
+function renderLevelTargetDetail(){
+  const box=document.getElementById('levelTargetDetailBox');
+  if(!box) return;
+  const person=String(levelSelectedPerson||'').trim();
+  if(!person){box.innerHTML=(levelTargetViewMode==='all'?'전직원 확인 상태입니다.':'승인 필요 직원 조회 상태입니다.')+' 성명을 클릭하면 직원별 공정명별 투입횟수와 현재레벨이 표시됩니다.';return;}
+  const target=buildLevelTargetRows().find(t=>t.personName===person);
+  if(!target){box.innerHTML='선택한 직원의 누적 데이터가 없습니다.';return;}
+  const meta=getLevelTargetMeta(person);
+  const currentLevel=meta.currentLevel || '-';
+  const processRows=getPersonProcessWorkCounts(person).map((p,i)=>{
+    return '<tr><td>'+(i+1)+'</td><td>'+escapeHtml(p.processName)+'</td><td>'+escapeHtml(p.workName)+'</td><td>'+p.count+'</td><td><b>'+escapeHtml(currentLevel)+'</b></td></tr>';
+  }).join('');
+  box.innerHTML='<b>'+escapeHtml(person)+'</b> / 총 투입횟수 '+target.totalInputCount+'회'+
+    '<div style="margin-top:8px;">현재레벨: <b>'+escapeHtml(currentLevel)+'</b> / 부여방식: <b>'+escapeHtml(meta.grantType||'자동')+'</b> / 승인상태: <b>'+(meta.approved?'승인완료':'미승인')+'</b>'+(meta.rollbackDate?' / 복원기준일: <b>'+escapeHtml(meta.rollbackDate)+'</b>':'')+' / 코멘트: '+escapeHtml(meta.comment||'-')+'</div>'+
+    '<div class="table-box" style="max-height:260px;margin-top:10px;"><table style="min-width:760px"><thead><tr><th>No</th><th>공정명</th><th>업무명</th><th>누적횟수</th><th>현재레벨</th></tr></thead><tbody>'+processRows+'</tbody></table></div>';
+}
+
+
+
+
+
+function escapeJs(v){return String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,' ');}
+
+function getMonthlyColumns(){
+  return [
+    {key:'month',label:'월'},
+    {key:'personName',label:'직원명'},
+    {key:'processName',label:'선택 공정'},
+    {key:'totalInputCount',label:'총투입횟수'},
+    {key:'mainLeaderCount',label:'작업리더횟수'},
+    ...monthlySummaryProcesses.map(p=>({key:p.key,label:p.label}))
+  ];
+}
+function getRowMonth(r){
+  const raw=String(r.workDate||'').trim();
+  const m=raw.match(/(\d{4})[-.\/년\s]*(\d{1,2})/);
+  if(!m) return '';
+  return m[1]+'-'+String(Number(m[2])).padStart(2,'0');
+}
+function getAvailableMonths(){
+  const set=new Set();
+  rows.forEach(r=>{
+    const month=getRowMonth(r);
+    if(month) set.add(month);
+  });
+  return Array.from(set).sort().reverse();
+}
+function toggleMonthlyProcessFilter(){
+  const panel=document.getElementById('monthlyProcessFilterPanel');
+  if(!panel) return;
+  panel.classList.toggle('show');
+  renderMonthlyProcessFilterList();
+}
+function renderMonthlyProcessFilterList(){
+  const list=document.getElementById('monthlyProcessFilterList');
+  if(!list) return;
+  const keyword=String(document.getElementById('monthlyProcessSearch')?.value||'').trim().toLowerCase();
+  const processes=getAvailableProcesses().filter(p=>!keyword || p.toLowerCase().includes(keyword));
+  const allChecked=monthlySelectedProcesses.includes('__ALL__') ? 'checked' : '';
+  let html='<label><input type="checkbox" value="__ALL__" '+allChecked+' onchange="onExcelMonthlyProcessCheck(this)"> 전체 공정</label>';
+  html += processes.map(p=>{
+    const checked=monthlySelectedProcesses.includes(p) ? 'checked' : '';
+    return '<label><input type="checkbox" value="'+escapeHtml(p)+'" '+checked+' onchange="onExcelMonthlyProcessCheck(this)"> '+escapeHtml(p)+'</label>';
+  }).join('');
+  list.innerHTML=html;
+}
+function onExcelMonthlyProcessCheck(changed){
+  const list=document.getElementById('monthlyProcessFilterList');
+  if(!list) return;
+  const checks=Array.from(list.querySelectorAll('input[type="checkbox"]'));
+  if(changed.value==='__ALL__' && changed.checked){
+    checks.forEach(ch=>{ if(ch.value!=='__ALL__') ch.checked=false; });
+  }else if(changed.value!=='__ALL__' && changed.checked){
+    const all=checks.find(ch=>ch.value==='__ALL__');
+    if(all) all.checked=false;
+  }
+}
+function selectAllMonthlyProcesses(){
+  monthlySelectedProcesses=['__ALL__'];
+  renderMonthlyProcessFilterList();
+  updateMonthlyProcessFilterButton();
+}
+function clearMonthlyProcesses(){
+  const list=document.getElementById('monthlyProcessFilterList');
+  if(!list) return;
+  list.querySelectorAll('input[type="checkbox"]').forEach(ch=>ch.checked=false);
+}
+function applyMonthlyProcessFilter(){
+  const list=document.getElementById('monthlyProcessFilterList');
+  if(list){
+    const values=Array.from(list.querySelectorAll('input[type="checkbox"]:checked')).map(ch=>ch.value);
+    monthlySelectedProcesses=(values.length===0 || values.includes('__ALL__')) ? ['__ALL__'] : values;
+  }
+  updateMonthlyProcessFilterButton();
+  const panel=document.getElementById('monthlyProcessFilterPanel');
+  if(panel) panel.classList.remove('show');
+}
+function updateMonthlyProcessFilterButton(){
+  const btn=document.querySelector('#monthlyModal .filter-toggle');
+  if(!btn) return;
+  if(monthlySelectedProcesses.includes('__ALL__')) btn.innerText='전체 공정 ▼';
+  else if(monthlySelectedProcesses.length<=2) btn.innerText=monthlySelectedProcesses.join(', ')+' ▼';
+  else btn.innerText=monthlySelectedProcesses.slice(0,2).join(', ')+' 외 '+(monthlySelectedProcesses.length-2)+'개 ▼';
+}
+function refreshMonthlyFilters(){
+  const monthInput=document.getElementById('monthlyMonthFilter');
+  const months=getAvailableMonths();
+  if(monthInput && !monthInput.value && months.length>0) monthInput.value=months[0];
+  if(!monthlyAppliedMonth && monthInput) monthlyAppliedMonth=monthInput.value || '';
+  if(!monthlyAppliedProcesses || monthlyAppliedProcesses.length===0) monthlyAppliedProcesses=['__ALL__'];
+  updateMonthlyProcessFilterButton();
+  renderMonthlyProcessFilterList();
+}
+function getSelectedMonthlyMonth(){
+  return monthlyAppliedMonth || '';
+}
+function getSelectedMonthlyProcesses(){
+  return monthlyAppliedProcesses && monthlyAppliedProcesses.length ? monthlyAppliedProcesses : ['__ALL__'];
+}
+function getSelectedMonthlyProcessLabel(){
+  const selected=getSelectedMonthlyProcesses();
+  return selected.includes('__ALL__') ? '전체 공정' : selected.join(', ');
+}
+function monthlyProcessMatches(process, selectedProcesses){
+  return selectedProcesses.includes('__ALL__') || selectedProcesses.includes(process);
+}
+function normalizeProcessName(v){
+  return String(v||'').trim().replace(/\s+/g,'').toUpperCase();
+}
+function getMonthlySummaryProcessKey(processName){
+  const normalized=normalizeProcessName(processName);
+  for(const p of monthlySummaryProcesses){
+    if(p.aliases.some(alias=>normalized.includes(normalizeProcessName(alias)))) return p.key;
+  }
+  return '';
+}
+function buildMonthlyRows(){
+  const selectedMonth=getSelectedMonthlyMonth();
+  const selectedProcesses=getSelectedMonthlyProcesses();
+  const selectedLabel=getSelectedMonthlyProcessLabel();
+  const map={};
+
+  rows.forEach(r=>{
+    const month=getRowMonth(r);
+    if(selectedMonth && month!==selectedMonth) return;
+
+    const person=String(r.personName||'').trim();
+    const process=String(r.processName||'').trim()||'-';
+    if(!person) return;
+    if(!monthlyProcessMatches(process, selectedProcesses)) return;
+
+    const key=(selectedMonth || month || '-')+'|'+person;
+    if(!map[key]){
+      const row={
+        month:selectedMonth || month || '-',
+        personName:person,
+        processName:selectedLabel,
+        totalInputCount:0,
+        mainLeaderCount:0
+      };
+      monthlySummaryProcesses.forEach(p=>{row[p.key]=0;});
+      map[key]=row;
+    }
+
+    map[key].totalInputCount += 1;
+    map[key].mainLeaderCount += Number(r.mainLeaderCount)||0;
+
+    const summaryKey=getMonthlySummaryProcessKey(process);
+    if(summaryKey) map[key][summaryKey] += 1;
+  });
+
+  return Object.values(map).sort((a,b)=>a.personName.localeCompare(b.personName,'ko'));
+}
+function buildMonthlyProcessChartRows(){
+  const selectedMonth=getSelectedMonthlyMonth();
+  const selectedProcesses=getSelectedMonthlyProcesses();
+  const map={};
+
+  rows.forEach(r=>{
+    const month=getRowMonth(r);
+    if(selectedMonth && month!==selectedMonth) return;
+
+    const process=String(r.processName||'').trim()||'-';
+    if(!monthlyProcessMatches(process, selectedProcesses)) return;
+
+    const key=(month || '-')+'|'+process;
+    if(!map[key]) map[key]={month:month||'-',process,totalInputCount:0};
+    map[key].totalInputCount += 1;
+  });
+
+  return Object.values(map).sort((a,b)=>{
+    const m=String(a.month).localeCompare(String(b.month));
+    return m!==0 ? m : b.totalInputCount-a.totalInputCount;
+  });
+}
+function renderMonthlyChart(){
+  const canvas=document.getElementById('monthlyChart');
+  if(!canvas) return;
+  if(typeof Chart==='undefined') return;
+
+  const chartRows=buildMonthlyProcessChartRows();
+  const labels=chartRows.map(r=>r.process);
+  const data=chartRows.map(r=>r.totalInputCount);
+
+  if(monthlyChartInstance) monthlyChartInstance.destroy();
+  monthlyChartInstance=new Chart(canvas,{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{label:'월별 공정별 투입횟수', data}]
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'top'},
+        title:{display:true,text:'월별 공정별 투입 횟수'}
+      },
+      scales:{
+        y:{beginAtZero:true,ticks:{precision:0}},
+        x:{ticks:{autoSkip:false,maxRotation:60,minRotation:0}}
+      }
+    }
+  });
+}
+
+function applyMonthlySearch(){
+  const input=document.getElementById('monthlyMonthFilter');
+  monthlyAppliedMonth=input ? input.value : '';
+  monthlyAppliedProcesses=monthlySelectedProcesses && monthlySelectedProcesses.length ? [...monthlySelectedProcesses] : ['__ALL__'];
+  renderMonthlyTable();
+}
+function renderMonthlyTable(){
+  refreshMonthlyFilters();
+  const monthlyRows=buildMonthlyRows();
+  const cols=getMonthlyColumns();
+  document.getElementById('monthlyTableHead').innerHTML='<tr>'+cols.map(c=>'<th>'+escapeHtml(c.label)+'</th>').join('')+'</tr>';
+  document.getElementById('monthlyTableBody').innerHTML=monthlyRows.map(r=>'<tr>'+cols.map(c=>'<td>'+escapeHtml(r[c.key]??0)+'</td>').join('')+'</tr>').join('');
+  renderMonthlyChart();
+}
+function openMonthlyModal(){showPage('monthly');}
+function closeMonthlyModal(){showPage('dashboard');}
+function downloadMonthlyExcel(){
+  const monthlyRows=buildMonthlyRows();
+  if(monthlyRows.length===0){alert('다운로드할 월별 투입 데이터가 없습니다.');return;}
+  if(typeof XLSX==='undefined'){alert('엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.');return;}
+  const cols=getMonthlyColumns();
+  const aoa=[cols.map(c=>c.label),...monthlyRows.map(r=>cols.map(c=>r[c.key]??0))];
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=cols.map(c=>({wch:Math.max(12,String(c.label).length+3)}));
+  XLSX.utils.book_append_sheet(wb,ws,'Monthly_Input');
+  const month=getSelectedMonthlyMonth()||'all_month';
+  const process=getSelectedMonthlyProcessLabel().replace(/[\\/:*?"<>|\s,]+/g,'_');
+  XLSX.writeFile(wb,'monthly_input_summary_'+month+'_'+process+'.xlsx');
+}
+
+
+function uploadBackData(input){
+  const file=input && input.files ? input.files[0] : null;
+  if(!file) return;
+  if(typeof XLSX==='undefined'){
+    alert('엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.');
+    input.value='';
+    return;
+  }
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      if(!aoa || aoa.length<2){alert('업로드할 백데이터가 없습니다.');input.value='';return;}
+
+      const header=aoa[0].map(h=>String(h||'').trim());
+      const cols=getDownloadColumns();
+      const labelToKey={};
+      cols.forEach(c=>{labelToKey[c.label]=c.key;});
+      const indexToKey=header.map(label=>labelToKey[label] || '');
+
+      const requiredLabels=['작업일','설비명','S/N','성명','공정명'];
+      const missing=requiredLabels.filter(label=>!header.includes(label));
+      if(missing.length>0){
+        alert('백데이터 양식이 맞지 않습니다. 누락 컬럼: '+missing.join(', '));
+        input.value='';
+        return;
+      }
+
+      const backInputId='BACK-'+new Date().toISOString().replace(/[-:.TZ]/g,'').slice(0,14)+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
+      const uploadedAt=new Date().toLocaleString('ko-KR');
+      const imported=[];
+
+      aoa.slice(1).forEach((line,idx)=>{
+        const hasValue=line.some(v=>String(v||'').trim()!=='');
+        if(!hasValue) return;
+        const row={};
+        cols.forEach(c=>{row[c.key]='';});
+        indexToKey.forEach((key,i)=>{if(key) row[key]=line[i];});
+        if(!String(row.personName||'').trim()) return;
+        row.inputId=String(row.inputId||'').trim() || backInputId+'-'+String(idx+1).padStart(4,'0');
+        row.uploadedAt=String(row.uploadedAt||'').trim() || uploadedAt;
+        row.personName=normalizeName(row.personName);
+        row.workDate=String(row.workDate||'').trim();
+        row.equipmentName=String(row.equipmentName||'').trim();
+        row.serialNo=String(row.serialNo||'').trim();
+        row.processName=String(row.processName||'').trim();
+        row.mainLeaderCount=Number(row.mainLeaderCount)||0;
+        processItems.forEach(item=>{
+          row[item.key+'Leader']=Number(row[item.key+'Leader'])||0;
+          row[item.key+'Participate']=Number(row[item.key+'Participate'])||0;
+        });
+        imported.push(row);
+      });
+
+      if(imported.length===0){alert('가져올 유효한 백데이터 행이 없습니다.');input.value='';return;}
+      rows=rows.concat(imported);
+      uploadHistory.push({inputId:backInputId,count:imported.length});
+      persist();
+      render();
+      alert('백데이터 업로드 완료: '+imported.length+'건이 누적 데이터에 추가되었습니다.');
+    }catch(err){
+      console.error(err);
+      alert('백데이터 업로드 중 오류가 발생했습니다. 백데이터다운 파일 양식인지 확인하세요.');
+    }finally{
+      input.value='';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function downloadExcel(){
+  if(rows.length===0){alert('다운로드할 데이터가 없습니다.');return;}
+  if(typeof XLSX==='undefined'){alert('엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하세요.');return;}
+  const cols=getDownloadColumns();
+  const aoa=[cols.map(c=>c.label),...rows.map(r=>cols.map(c=>r[c.key]??''))];
+  const wb=XLSX.utils.book_new();const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=cols.map(c=>({wch:Math.max(12,String(c.label).length+4)}));XLSX.utils.book_append_sheet(wb,ws,'Person_Count');
+  const today=new Date().toISOString().slice(0,10);XLSX.writeFile(wb,'person_count_backdata_'+today+'.xlsx');
+}
+load();render();renderManualLevelEmployeeRows();refreshLevelTargetList('__APPROVAL_NEEDED__');
+</script>
+
+<script>
+let currentUser = null;
+function authShowError(msg){ const el=document.getElementById('authError'); if(el){ el.innerText=msg; el.style.display='block'; } }
+function authClearError(){ const el=document.getElementById('authError'); if(el){ el.innerText=''; el.style.display='none'; } }
+async function authWaitFirebase(){
+  if(window.firebaseAuthReady) return window.firebaseAuthReady;
+  return new Promise((resolve,reject)=>{
+    let tries=0;
+    const timer=setInterval(()=>{
+      tries++;
+      if(window.firebaseAuth){ clearInterval(timer); resolve(window.firebaseAuth); }
+      if(tries>120){ clearInterval(timer); reject(new Error('Firebase 초기화가 완료되지 않았습니다.')); }
+    },50);
+  });
+}
+function authSetLocked(locked){
+  document.body.classList.toggle('firebase-locked', !!locked);
+  const screen=document.getElementById('authScreen');
+  if(screen) screen.style.display = locked ? 'flex' : 'none';
+}
+async function authLogin(){
+  authClearError();
+  const email=String(document.getElementById('loginId')?.value||'').trim();
+  const pw=document.getElementById('loginPw')?.value||'';
+  if(!email) return authShowError('이메일을 입력하세요.');
+  if(!pw) return authShowError('비밀번호를 입력하세요.');
+  try{
+    await authWaitFirebase();
+    const result=await window.firebaseSignIn(window.firebaseAuth,email,pw);
+    currentUser=result.user;
+    authSetLocked(false);
+  }catch(e){
+    console.error(e);
+    const code=e&&e.code?e.code:'';
+    if(code==='auth/unauthorized-domain') authShowError('Firebase Authorized domains에 현재 GitHub Pages 도메인을 추가해야 합니다.');
+    else if(code==='auth/invalid-credential'||code==='auth/wrong-password'||code==='auth/user-not-found') authShowError('이메일 또는 비밀번호가 일치하지 않습니다.');
+    else authShowError('로그인 실패: '+(e.message||e));
+  }
+}
+async function authLogout(){
+  try{ await authWaitFirebase(); await window.firebaseSignOut(window.firebaseAuth); }catch(e){ console.error(e); }
+  currentUser=null;
+  authSetLocked(true);
+}
+function authInit(){
+  authSetLocked(true);
+  authWaitFirebase().then(()=>{
+    window.firebaseOnAuthStateChanged(window.firebaseAuth, user=>{
+      currentUser=user||null;
+      authSetLocked(!user);
+    });
+  }).catch(err=>authShowError('Firebase 초기화 실패: '+err.message));
+}
+authInit();
+</script>
+
+</body>
+</html>
